@@ -1,9 +1,11 @@
 # TinySocket
 A cross platform, minimal low-level socket library for C++
+
 Os           | Build status
 ------------ | ------------
 Windows  	 | passing
 Unix Based   | passing
+
 Make socket 
 ```cpp
 ts::socket tcp_socket(ts::address_famaly::internet_network, ts::socket_type::stream, ts::protocol_type::tcp);
