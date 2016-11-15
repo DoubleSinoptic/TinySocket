@@ -1,10 +1,10 @@
 # TinySocket
 A cross platform, minimal low-level socket library for C++
 
-Os           | Build status
------------- | ------------
-Windows  	 | passing
-Unix Based   | passing
+OS           | Support
+------------ | --------
+Windows  	 | Yes
+Unix Based   | Yes
 
 Make socket 
 ```cpp
