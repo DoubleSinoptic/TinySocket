@@ -331,10 +331,11 @@ ts::socket::socket(ts::address_famaly _Famaly, ts::socket_type _SocketTpye, ts::
 		throw socket_exception("error: of create socket", get_socket_error_code());
 }
 
-ts::socket::socket(socket_native_fd _NativeFd) throw(socket_exception)
+ts::socket::socket(socket_native_fd _NativeFd, const ip_socket_address& _RemoteAddres) throw(socket_exception)
 	: _endpoint(ts::ip_socket_address(ts::ip_address_none, 0))
 {
 	_fd = _NativeFd;
+	_endpoint = _RemoteAddres;
 }
 
 ts::socket::~socket()
@@ -474,7 +475,7 @@ ts::socket ts::socket::accept() throw(socket_exception)
 	if (e == INVALID_SOCKET)
 		throw socket_exception("error: of accept socket", get_socket_error_code());
 	_endpoint.deserialaze(&recv);
-	return socket(e);
+	return socket(e, _endpoint);
 
 }
 
@@ -489,7 +490,7 @@ ts::socket * ts::socket::accept_new() throw(socket_exception)
 	if (e == INVALID_SOCKET)
 		throw socket_exception("error: of accept socket", get_socket_error_code());
 	_endpoint.deserialaze(&recv);
-	return new socket(e);
+	return new socket(e, _endpoint);
 }
 
 void ts::socket::close()

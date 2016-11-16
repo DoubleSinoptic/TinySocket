@@ -244,7 +244,7 @@ namespace ts
 
 		explicit socket(ts::address_famaly _Famaly, ts::socket_type _SocketTpye, ts::protocol_type _ProtocolType) throw(socket_exception);
 
-		explicit socket(socket_native_fd _NativeFd) throw(socket_exception);
+		explicit socket(socket_native_fd _NativeFd, const ip_socket_address& _RemoteAddres) throw(socket_exception);
 
 		~socket();
 
