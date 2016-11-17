@@ -167,7 +167,9 @@ namespace ts
 		ip_socket_address(const ip_socket_address& val)
 			: _address(val._address),
 			_port(val._port)
-		{}
+		{
+			set_famaly(val.get_famaly());
+		}
 
 		ip_socket_address& operator=(const ip_socket_address& val)
 		{
