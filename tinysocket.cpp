@@ -11,6 +11,44 @@
 		#pragma comment(lib,"ws2_32.lib") 
 	#endif	
 	typedef int socklen_t;
+	
+	#define _sioct ioctlsocket
+	#define _sclose closesocket
+	#define _ssuberrorconst 10038
+
+	char exception_buffer[2048];
+	class ws2data_quard
+	{
+	public:
+		ws2data_quard()
+			: is_init(false)
+		{
+			if (::WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
+			{
+				sprintf_s(exception_buffer, "wsa startup failed: error code: %d", WSAGetLastError());
+				throw std::runtime_error(exception_buffer);
+			}
+			is_init = true;
+		}
+		~ws2data_quard()
+		{
+			if (is_init)
+				::WSACleanup();
+		}
+
+		void cheak() 
+		{
+			if(!is_init)
+				throw std::runtime_error("error: wsa not startup");
+		}
+
+	private:
+		bool is_init;
+		WSADATA wsa;
+	} _wsintance;
+
+	#define CHEAK_SOCKET _wsintance.cheak()
+
 #else
 	#include <sys/socket.h>
 	#include <sys/types.h>
@@ -20,6 +58,14 @@
 	#include <unistd.h>
 	#include <string.h>
 	#include <errno.h>
+	#include <sys/ioctl.h>
+	
+	#define _sioct ioctl
+	#define _sclose close
+	#define _ssuberrorconst 88 
+
+	#define CHEAK_SOCKET
+
 	#define INVALID_SOCKET -1	
 #endif
 
@@ -68,16 +114,7 @@ const char* socket_errors[] = {
 
 const char* errormsg_from_native_code(ts::socket_native_error_code code)
 {
-#ifdef _WIN32
-	ts::socket_native_error_code native_code = code - 10038;
-	if (native_code >= 0 && native_code < 27)
-		return socket_errors[native_code];
-#else
-
-	ts::socket_native_error_code native_code = code - 88;
-	if (native_code >= 0 && native_code < 27)
-		return socket_errors[native_code];
-#endif
+	ts::socket_native_error_code native_code = code - _ssuberrorconst;
 	return "socket undefined error (see the error code)";
 }
 
@@ -95,12 +132,7 @@ const char * ts::socket_exception::what() const throw()
 
 ts::socket_native_error_code ts::socket_exception::formated_error_code() const throw()
 {
-#ifdef _WIN32
-	return _code - 10038;
-#else
-	return _code - 88;
-#endif
-
+	return _code - _ssuberrorconst;
 }
 
 ts::socket_native_error_code ts::socket_exception::system_error_code() const throw()
@@ -270,41 +302,6 @@ void ts::ip_socket_address::deserialaze(const void * _Src)
 
 }
 
-
-#if defined(_WIN32)
-char exception_buffer[2048];
-class ws2data_quard 
-{
-public:
-	ws2data_quard() 
-		: is_init(false)
-	{
-		if (::WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
-		{
-			sprintf_s(exception_buffer, "wsa startup failed: error code: %d", WSAGetLastError());
-			throw std::runtime_error(exception_buffer);
-		}
-		is_init = true;
-	}
-	~ws2data_quard() 
-	{
-		if (is_init)
-			::WSACleanup();
-	}
-
-	//void cheak() 
-	//{
-	//	if(!is_init)
-	//		throw std::runtime_error("error: wsa not sta...");
-	//}
-
-private:
-	bool is_init;
-	WSADATA wsa;
-} _wsintance;
-
-#endif
-
 std::size_t totalBytesSended = 0;
 std::size_t totalBytesReceived = 0;
 std::size_t ts::socket::get_total_bytes_sended()
@@ -320,7 +317,7 @@ std::size_t ts::socket::get_total_bytes_received()
 ts::socket::socket(ts::address_famaly _Famaly, ts::socket_type _SocketTpye, ts::protocol_type _ProtocolType)  throw(socket_exception)
 	: _endpoint(ts::ip_socket_address(ts::ip_address_none, 0))
 {
-	//_wsintance.cheak();
+	CHEAK_SOCKET;
 
 	_fd = ::socket(
 		native_enum_address_famaly(_Famaly), 
@@ -497,12 +494,7 @@ void ts::socket::close()
 {
 	if (_fd == 0)
 		return;
-#if defined(_WIN32)
-	::closesocket(_fd);
-#else
-	::close(_fd);
-#endif
-	
+	::_sclose(_fd);
 	_fd = 0;
 }
 
@@ -516,6 +508,26 @@ ts::ip_socket_address ts::socket::remote_endpoint()
 {
 	return _endpoint;
 }
+
+
+
+
+void  ts::socket::set_noblocking(bool _Enabled)  throw(socket_exception)
+{
+	unsigned long opt = _Enabled;
+	if(::_sioct(_fd, FIONBIO,&opt))
+		throw socket_exception("error: of set noblocking socket (ioctl)", get_socket_error_code());	
+}
+
+size_t ts::socket::bytes_available() throw(socket_exception)
+{
+	unsigned long bytes_available = 0;
+	if(::_sioct(_fd, FIONREAD,&bytes_available))
+		throw socket_exception("error: of get bytes_available socket (ioctl)", get_socket_error_code());	
+	return bytes_available;
+}
+
+
 
 
 

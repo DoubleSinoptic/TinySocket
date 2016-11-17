@@ -281,6 +281,10 @@ namespace ts
 		void shutdown(socket_shutdown _O) throw(socket_exception);
 
 		ts::ip_socket_address remote_endpoint();
+		
+		void set_noblocking(bool _Enabled) throw(socket_exception);
+		
+		size_t bytes_available() throw(socket_exception);
 	private:
 		
 		ts::ip_socket_address _endpoint;
