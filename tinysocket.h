@@ -234,6 +234,42 @@ namespace ts
 		both = 2
 	};
 
+	enum class socket_flags : int
+	{
+		none = 0x0000,
+        out_of_band = 0x0001,
+        peek = 0x0002,
+        dont_route = 0x0004,
+        truncated = 0x0100,
+        control_data_truncated = 0x0200,
+        broadcast = 0x0400,
+        multicast = 0x0800,
+        partial = 0x8000,
+	};
+
+	inline socket_flags operator & (socket_flags lhs, socket_flags rhs)
+	{
+		return (socket_flags)(static_cast<unsigned>(lhs) & static_cast<unsigned>(rhs));
+	}
+
+	inline socket_flags& operator &= (socket_flags& lhs, socket_flags rhs)
+	{
+		lhs = (socket_flags)(static_cast<unsigned>(lhs) & static_cast<unsigned>(rhs));
+		return lhs;
+	}
+
+	inline socket_flags operator | (socket_flags lhs, socket_flags rhs)
+	{
+		return (socket_flags)(static_cast<unsigned>(lhs) | static_cast<unsigned>(rhs));
+	}
+
+	inline socket_flags& operator |= (socket_flags& lhs, socket_flags rhs)
+	{
+		lhs = (socket_flags)(static_cast<unsigned>(lhs) | static_cast<unsigned>(rhs));
+		return lhs;
+	}
+
+	
 	class socket
 	{
 	public:
@@ -266,13 +302,13 @@ namespace ts
 
 		void connect(const socket_address& _To) throw(socket_exception);
 
-		size_t send(const void* _Data, size_t _DataLen) throw(socket_exception);
+		size_t send(const void* _Data, size_t _DataLen, socket_flags _Flags = socket_flags::none) throw(socket_exception);
 
-		size_t receive(void* _Data, size_t _DataLen) throw(socket_exception);
+		size_t receive(void* _Data, size_t _DataLen, socket_flags _Flags = socket_flags::none) throw(socket_exception);
 		
-		size_t send_to(const void* _Data, size_t _DataLen, const socket_address& _To) throw(socket_exception);
+		size_t send_to(const void* _Data, size_t _DataLen, const socket_address& _To, socket_flags _Flags = socket_flags::none) throw(socket_exception);
 
-		size_t receive_from(void* _Data, size_t _DataLen, socket_address& _From) throw(socket_exception);
+		size_t receive_from(void* _Data, size_t _DataLen, socket_address& _From, socket_flags _Flags = socket_flags::none) throw(socket_exception);
 
 		socket accept() throw(socket_exception);
 

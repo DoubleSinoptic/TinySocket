@@ -1,9 +1,6 @@
-
-
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 
 #include "tinysocket.h"
-
 
 #if defined(_WIN32)
 	#include <WinSock2.h>
@@ -19,35 +16,40 @@
 	char exception_buffer[2048];
 	class ws2data_quard
 	{
+		
 	public:
 		ws2data_quard()
-			: is_init(false)
 		{
+			std::lock_guard<std::mutex> _(_lockRoot);
+			is_init = false;
 			if (::WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
 			{
-				sprintf_s(exception_buffer, "wsa startup failed: error code: %d", WSAGetLastError());
+				std::sprintf(exception_buffer, "wsa startup failed: error code: %d", WSAGetLastError());
 				throw std::runtime_error(exception_buffer);
 			}
 			is_init = true;
 		}
 		~ws2data_quard()
 		{
+			std::lock_guard<std::mutex> _(_lockRoot);
 			if (is_init)
 				::WSACleanup();
 		}
 
 		void cheak() 
 		{
+			std::lock_guard<std::mutex> _(_lockRoot);
 			if(!is_init)
 				throw std::runtime_error("error: wsa not startup");
 		}
 
 	private:
+		std::mutex _lockRoot;
 		bool is_init;
 		WSADATA wsa;
 	} _wsintance;
 
-	#define CHEAK_SOCKET _wsintance.cheak()
+	#define CHEK_SOCKET _wsintance.cheak()
 
 #else
 	#include <sys/socket.h>
@@ -64,7 +66,7 @@
 	#define _sclose close
 	#define _ssuberrorconst 88 
 
-	#define CHEAK_SOCKET
+	#define CHEK_SOCKET
 
 	#define INVALID_SOCKET -1	
 #endif
@@ -78,8 +80,6 @@ ts::socket_native_error_code get_socket_error_code()
 	return errno;
 #endif
 }
-
-
 
 #include <stdexcept>
 
@@ -317,7 +317,7 @@ std::size_t ts::socket::get_total_bytes_received()
 ts::socket::socket(ts::address_famaly _Famaly, ts::socket_type _SocketTpye, ts::protocol_type _ProtocolType)  throw(socket_exception)
 	: _endpoint(ts::ip_socket_address(ts::ip_address_none, 0))
 {
-	CHEAK_SOCKET;
+	CHEK_SOCKET;
 
 	_fd = ::socket(
 		native_enum_address_famaly(_Famaly), 
@@ -413,31 +413,31 @@ void ts::socket::connect(const socket_address & _To) throw(socket_exception)
 	_endpoint.deserialaze(&_To);
 }
 
-size_t ts::socket::send(const void * _Data, size_t _DataLen) throw(socket_exception)
+size_t ts::socket::send(const void * _Data, size_t _DataLen, socket_flags flags) throw(socket_exception)
 {
 	totalBytesSended += _DataLen;
-	int rret = ::send(_fd, (const char*)_Data, _DataLen, 0);
+	int rret = ::send(_fd, (const char*)_Data, _DataLen, (int)flags);
 	if (rret < 0)
 		throw socket_exception("error: socket: of send data", get_socket_error_code());
 	return rret;
 }
 
-size_t ts::socket::receive(void * _Data, size_t _DataLen) throw(socket_exception)
+size_t ts::socket::receive(void * _Data, size_t _DataLen, socket_flags flags) throw(socket_exception)
 {
 	totalBytesReceived += _DataLen;
-	int rret = ::recv(_fd, (char*)_Data, _DataLen, 0);
+	int rret = ::recv(_fd, (char*)_Data, _DataLen, (int)flags);
 	if (rret < 0)
 		throw socket_exception("error: socket: of receive data", get_socket_error_code());
 	return rret;
 }
 
 #include <iostream>
-size_t ts::socket::send_to(const void * _Data, size_t _DataLen, const socket_address & _To) throw(socket_exception)
+size_t ts::socket::send_to(const void * _Data, size_t _DataLen, const socket_address & _To, socket_flags flags) throw(socket_exception)
 {
 	totalBytesSended += _DataLen;
 	sockaddr data;
 	_To.serialaze(&data);
-	int rret = ::sendto(_fd, (const char*)_Data, _DataLen, 0, &data, sizeof(sockaddr));
+	int rret = ::sendto(_fd, (const char*)_Data, _DataLen, (int)flags, &data, sizeof(sockaddr));
 	if (rret < 0) {
 		//std::cout << WSAGetLastError() << std::endl;
 		throw socket_exception("error: socket: of send data to endpoint", get_socket_error_code());
@@ -446,14 +446,14 @@ size_t ts::socket::send_to(const void * _Data, size_t _DataLen, const socket_add
 	return rret;
 }
 
-size_t ts::socket::receive_from(void * _Data, size_t _DataLen, socket_address & _From) throw(socket_exception)
+size_t ts::socket::receive_from(void * _Data, size_t _DataLen, socket_address & _From, socket_flags flags) throw(socket_exception)
 {
 	totalBytesReceived += _DataLen;
 	socklen_t fromlen = sizeof(sockaddr);
 	sockaddr data;
 	_From.serialaze(&data);
 	
-	int rret = ::recvfrom(_fd, (char*)_Data, _DataLen, 0, &data, &fromlen);
+	int rret = ::recvfrom(_fd, (char*)_Data, _DataLen, (int)flags, &data, &fromlen);
 	if (rret < 0) {
 		//std::cout << WSAGetLastError() << std::endl;
 		throw socket_exception("error: socket: of receive from data from endpoint", get_socket_error_code());
@@ -475,8 +475,6 @@ ts::socket ts::socket::accept() throw(socket_exception)
 	return socket(e, _endpoint);
 
 }
-
-
 
 ts::socket * ts::socket::accept_new() throw(socket_exception)
 {
@@ -509,9 +507,6 @@ ts::ip_socket_address ts::socket::remote_endpoint()
 	return _endpoint;
 }
 
-
-
-
 void  ts::socket::set_noblocking(bool _Enabled)  throw(socket_exception)
 {
 	unsigned long opt = _Enabled;
@@ -526,8 +521,3 @@ size_t ts::socket::bytes_available() throw(socket_exception)
 		throw socket_exception("error: of get bytes_available socket (ioctl)", get_socket_error_code());	
 	return bytes_available;
 }
-
-
-
-
-
