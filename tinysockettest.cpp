@@ -1,4 +1,4 @@
-#include <tinysocket.h>
+#include "tinysocket.h"
 #include <iostream>
 #include <sstream>
 #include <cstring>
@@ -12,7 +12,6 @@ int main()
 		server.listen(0);
 	
 		
-	
 		while(true)
 		{
 			ts::socket client = server.accept();

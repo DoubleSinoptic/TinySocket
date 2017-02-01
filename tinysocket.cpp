@@ -1,8 +1,8 @@
-#define _WINSOCK_DEPRECATED_NO_WARNINGS
-
 #include "tinysocket.h"
 
 #if defined(_WIN32)
+	#define _WINSOCK_DEPRECATED_NO_WARNINGS
+	#define _CRT_SECURE_NO_WARNINGS
 	#include <WinSock2.h>
 	#if defined(_MSC_VER)
 		#pragma comment(lib,"ws2_32.lib") 
@@ -54,13 +54,14 @@
 #else
 	#include <sys/socket.h>
 	#include <sys/types.h>
+	#include <sys/ioctl.h>
 	#include <netinet/in.h>
 	#include <netinet/tcp.h>
 	#include <arpa/inet.h>
 	#include <unistd.h>
 	#include <string.h>
 	#include <errno.h>
-	#include <sys/ioctl.h>
+
 	
 	#define _sioct ioctl
 	#define _sclose close
