@@ -116,7 +116,7 @@ const char* socket_errors[] = {
 const char* errormsg_from_native_code(ts::socket_native_error_code code)
 {
 	ts::socket_native_error_code native_code = code - _ssuberrorconst;
-	if (native_code > 24)
+	if ((native_code > 24) || (native_code < 0))
 		return "socket undefined error (see the error code)";
 	else
 		return socket_errors[native_code];
