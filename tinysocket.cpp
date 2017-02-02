@@ -146,100 +146,120 @@ ts::socket_native_error_code ts::socket_exception::system_error_code() const thr
 }
 
 
-
-int native_enum_socket_type(int ttype)
+int native_enum_socket_type(ts::socket_type ttype)
 {
 	switch (ttype)
 	{
-	case ts::stream:
+	case ts::socket_type::raw:
+		return SOCK_RAW;
+		break;
+	case ts::socket_type::stream:
 		return SOCK_STREAM;
 		break;
-	case ts::dgram:
+	case ts::socket_type::dgram:
 		return SOCK_DGRAM;
 		break;
 	default:
 		return -1;
 	}
 }
+ts::socket_type un_native_enum_socket_type(int ttype)
+{
+	switch (ttype)
+	{
+	case SOCK_STREAM:
+		return ts::socket_type::stream;
+		break;
+	case SOCK_RAW:
+		return ts::socket_type::raw;
+		break;
+	case SOCK_DGRAM:
+		return ts::socket_type::dgram;
+		break;
+	default:
+		return (ts::socket_type) - 1;
+	}
+}
+
+
+
+
+
+
+
 
 int native_enum_address_famaly(ts::address_famaly ttype)
 {
 	switch (ttype)
 	{
-	case ts::internet_network:
+	case ts::address_famaly::internet_network:
 		return AF_INET;
 		break;
-	case ts::internet_network_ipv6:
+	case ts::address_famaly::internet_network_ipv6:
 		return AF_INET6;
 		break;
 	default:
 		return -1;
 	}
 }
-
-
-int native_enum_protocol_type(int ttype)
+ts::address_famaly un_native_enum_address_famaly(int ttype)
 {
 	switch (ttype)
 	{
-	case ts::tcp:
+	case AF_INET:
+		return ts::address_famaly::internet_network;
+		break;
+	case AF_INET6:
+		return ts::address_famaly::internet_network_ipv6;
+		break;
+	default:
+		return (ts::address_famaly) - 1;
+	}
+}
+
+
+
+int native_enum_protocol_type(ts::protocol_type ttype)
+{
+	switch (ttype)
+	{
+	case ts::protocol_type::raw:
+		return IPPROTO_RAW;
+		break;
+	case ts::protocol_type::ip:
+		return IPPROTO_IP;
+		break;
+	case ts::protocol_type::tcp:
 		return IPPROTO_TCP;
 		break;
-	case ts::udp:
+	case ts::protocol_type::udp:
 		return IPPROTO_UDP;
 		break;
 	default:
 		return -1;
 	}
 }
-
-
-
-int un_native_enum_socket_type(int ttype)
+ts::protocol_type un_native_enum_protocol_type(int ttype)
 {
 	switch (ttype)
 	{
-	case SOCK_STREAM:
-		return ts::stream;
+	case IPPROTO_RAW:
+		return ts::protocol_type::raw;
 		break;
-	case SOCK_DGRAM:
-		return ts::dgram;
+	case IPPROTO_IP:
+		return ts::protocol_type::ip;
 		break;
-	default:
-		return -1;
-	}
-}
-
-ts::address_famaly un_native_enum_address_famaly(int ttype)
-{
-	switch (ttype)
-	{
-	case AF_INET:
-		return ts::internet_network;
-		break;
-	case AF_INET6:
-		return ts::internet_network_ipv6;
-		break;
-	default:
-		return (ts::address_famaly)-1;
-	}
-}
-
-
-int un_native_enum_protocol_type(int ttype)
-{
-	switch (ttype)
-	{
 	case IPPROTO_TCP:
-		return ts::tcp;
+		return ts::protocol_type::tcp;
 		break;
 	case IPPROTO_UDP:
-		return ts::udp;
+		return ts::protocol_type::udp;
 		break;
 	default:
-		return -1;
+		return (ts::protocol_type)-1;
 	}
 }
+
 
 
 

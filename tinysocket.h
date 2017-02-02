@@ -125,7 +125,8 @@ namespace ts
 	enum protocol_type : int
 	{
 		tcp,
-		udp
+		udp,
+		ip
 	};
 
 	class socket_address
@@ -138,7 +139,7 @@ namespace ts
 		socket_address& operator=(const socket_address&) = default;
 
 		socket_address()
-			: _famaly(internet_network)
+			: _famaly(address_famaly::internet_network)
 		{}
 
 		address_famaly get_famaly() const
