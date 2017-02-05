@@ -315,6 +315,8 @@ namespace ts
 
 		socket* accept_new() throw(socket_exception);
 
+		void tcp_no_delay(bool enabled)  throw(socket_exception);	
+
 		void close();
 
 		void shutdown(socket_shutdown _O) throw(socket_exception);

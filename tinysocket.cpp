@@ -411,7 +411,7 @@ void ts::socket::set_receive_time_out(ms_time_out mssec) throw(socket_exception)
 	tv.tv_sec = mssec;  /* 30 Secs Timeout */
 	tv.tv_usec = 0;  // Not init'ing this can cause strange errors
 	
-	if (setsockopt(_fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(struct timeval))) 
+	if (::setsockopt(_fd, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(struct timeval))) 
 		throw socket_exception("error: socket: of set option to", get_socket_error_code());
 }
 
@@ -422,7 +422,14 @@ void ts::socket::set_send_time_out(ms_time_out mssec) throw(socket_exception)
 	tv.tv_sec = mssec;  /* 30 Secs Timeout */
 	tv.tv_usec = 0;  // Not init'ing this can cause strange errors
 
-	if(setsockopt(_fd, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv, sizeof(struct timeval)))
+	if(::setsockopt(_fd, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv, sizeof(struct timeval)))
+		throw socket_exception("error: socket: of set option to", get_socket_error_code());
+}
+
+void ts::socket::tcp_no_delay(bool enabled) throw(ts::socket_exception)
+{
+	int flag = enabled ? 1 : 0;
+	if (::setsockopt(_fd, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int)))
 		throw socket_exception("error: socket: of set option to", get_socket_error_code());
 }
 
