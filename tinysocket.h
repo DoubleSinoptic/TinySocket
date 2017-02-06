@@ -187,8 +187,8 @@ namespace ts
 
 		const void* native_address() const;
 		void* native_address();
-		std::int32_t& native_size();
-		std::int32_t native_size() const;
+		std::uint32_t& native_size();
+		std::uint32_t native_size() const;
 
 		const ip_address& get_v4_address() const;
 		const ip_address_v6& get_v6_address() const;
@@ -200,7 +200,7 @@ namespace ts
 		bool operator !=(const ip_end_point& of) const;
 		bool operator ==(const ip_end_point& of) const;
 	private:
-		std::int32_t _address_size;
+		std::uint32_t _address_size;
 		std::uint8_t _address[32];
 	};
 

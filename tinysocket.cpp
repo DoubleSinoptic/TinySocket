@@ -477,7 +477,7 @@ size_t ts::socket::receive_from(void * _Data, size_t _DataLen, ip_end_point & _F
 {
 	totalBytesReceived += _DataLen;
 
-	int rret = ::recvfrom(_fd, (char*)_Data, _DataLen, (int)flags, (sockaddr*)_From.native_address(), &_From.native_size());
+	int rret = ::recvfrom(_fd, (char*)_Data, _DataLen, (int)flags, (sockaddr*)_From.native_address(), (socklen_t*)&_From.native_size());
 	if (rret < 0) {
 		//std::cout << WSAGetLastError() << std::endl;
 		throw socket_exception("error: socket: of receive from data from endpoint", get_socket_error_code());
@@ -490,7 +490,7 @@ size_t ts::socket::receive_from(void * _Data, size_t _DataLen, ip_end_point & _F
 ts::socket ts::socket::accept() throw(socket_exception)
 {
 	ip_end_point a(ip_address_none, 0);
-	int e = ::accept(_fd, (sockaddr*)a.native_address(), &a.native_size());
+	int e = ::accept(_fd, (sockaddr*)a.native_address(), (socklen_t*)&a.native_size());
 	if (e == INVALID_SOCKET)
 		throw socket_exception("error: of accept socket", get_socket_error_code());
 	
@@ -501,7 +501,7 @@ ts::socket ts::socket::accept() throw(socket_exception)
 ts::socket * ts::socket::accept_new() throw(socket_exception)
 {
 	ip_end_point a(ip_address_none, 0);
-	ts::socket_native_fd e = ::accept(_fd, (sockaddr*)a.native_address(), &a.native_size());
+	ts::socket_native_fd e = ::accept(_fd, (sockaddr*)a.native_address(), (socklen_t*)&a.native_size());
 	if (e == INVALID_SOCKET)
 		throw socket_exception("error: of accept socket", get_socket_error_code());
 	return new socket(e, a);
@@ -576,11 +576,11 @@ void * ts::ip_end_point::native_address()
 	return _address;
 }
 
-std::int32_t & ts::ip_end_point::native_size()
+std::uint32_t & ts::ip_end_point::native_size()
 {
 	return _address_size;
 }
-std::int32_t ts::ip_end_point::native_size() const
+std::uint32_t ts::ip_end_point::native_size() const
 {
 	return _address_size;
 }
