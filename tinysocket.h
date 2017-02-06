@@ -6,6 +6,7 @@
 #include <exception>
 #include <mutex>
 #include <utility>
+#include <cstring>
 
 namespace ts
 {
@@ -63,7 +64,7 @@ namespace ts
 		}
 		explicit ip_address_v6(ip_part* value) 
 		{
-			memcpy(_address, value, 16);
+			std::memcpy(_address, value, 16);
 		}
 
 		explicit ip_address_v6(const char* _Address) 
@@ -73,7 +74,7 @@ namespace ts
 
 		ip_address_v6(const ip_address_v6& val) 
 		{
-			memcpy(_address, val._address, 16);
+			std::memcpy(_address, val._address, 16);
 		}
 
 		friend std::ostream& operator <<(std::ostream& _Stream, const ip_address_v6& _Address) 
@@ -90,17 +91,17 @@ namespace ts
 
 		ip_address_v6& operator=(const ip_address_v6& val)
 		{
-			memcpy(_address, val._address, 16);
+			std::memcpy(_address, val._address, 16);
 			return *this;
 		}
 
 		bool operator !=(const ip_address_v6& of) const 
 		{ 
-			return memcmp(_address, of._address, 16);
+			return std::memcmp(_address, of._address, 16);
 		}
 		bool operator ==(const ip_address_v6& of) const
 		{ 
-			return !memcmp(_address, of._address, 16);
+			return !std::memcmp(_address, of._address, 16);
 		}
 
 	private:
