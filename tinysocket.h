@@ -28,15 +28,90 @@ namespace ts
 		socket_native_error_code system_error_code() const throw();
 	};
 
-	typedef uint8_t ip4_part;
+	typedef uint8_t ip_part;
 
 	typedef int64_t socket_native_fd;
+
+	class ip_address_v6
+	{
+	public:
+		explicit ip_address_v6(
+			ip_part part0, ip_part part1, ip_part part2, ip_part part3,
+			ip_part part4, ip_part part5, ip_part part6,ip_part part7,
+			ip_part part8, ip_part part9, ip_part part10, ip_part part11,
+			ip_part part12, ip_part part13, ip_part part14, ip_part part15)
+		{
+			_address[0] = part0;
+			_address[1] = part1;
+			_address[2] = part2;
+			_address[3] = part3;
+
+			_address[4] = part4;
+			_address[5] = part5;
+			_address[6] = part6;
+			_address[7] = part7;
+
+			_address[8] = part8;
+			_address[9] = part9;
+			_address[10] = part10;
+			_address[11] = part11;
+
+			_address[12] = part12;
+			_address[13] = part13;
+			_address[14] = part14;
+			_address[15] = part15;
+		}
+		explicit ip_address_v6(ip_part* value) 
+		{
+			memcpy(_address, value, 16);
+		}
+
+		explicit ip_address_v6(const char* _Address) 
+		{
+			throw socket_exception("", -1);
+		}
+
+		ip_address_v6(const ip_address_v6& val) 
+		{
+			memcpy(_address, val._address, 16);
+		}
+
+		friend std::ostream& operator <<(std::ostream& _Stream, const ip_address_v6& _Address) 
+		{
+			for (int i = 0; i < 16; i++)
+				_Stream << std::hex << _Address._address[0] << (i != 15) ? ":" : "";
+			return _Stream;
+		}
+
+		const ip_part* native_address() const
+		{
+			return _address;
+		}
+
+		ip_address_v6& operator=(const ip_address_v6& val)
+		{
+			memcpy(_address, val._address, 16);
+			return *this;
+		}
+
+		bool operator !=(const ip_address_v6& of) const 
+		{ 
+			return memcmp(_address, of._address, 16);
+		}
+		bool operator ==(const ip_address_v6& of) const
+		{ 
+			return !memcmp(_address, of._address, 16);
+		}
+
+	private:
+		ip_part _address[16];
+	};
 
 	class ip_address
 	{
 	public:
 
-		explicit ip_address(ip4_part _A, ip4_part _B, ip4_part _C, ip4_part _D);
+		explicit ip_address(ip_part _A, ip_part _B, ip_part _C, ip_part _D);
 
 		explicit ip_address(const char* _Address);
 
@@ -58,8 +133,8 @@ namespace ts
 			_address = val._address;
 			return *this;
 		}
-		bool operator !=(const ip_address& of) { return _address != of._address; }
-		bool operator ==(const ip_address& of) { return _address == of._address; }
+		bool operator !=(const ip_address& of) const { return _address != of._address; }
+		bool operator ==(const ip_address& of) const { return _address == of._address; }
 
 	private:
 		uint32_t _address;
@@ -75,157 +150,58 @@ namespace ts
 
 	const ip_address ip_address_none(0xFF, 0xFF, 0xFF, 0xFF);
 
-	class port
-	{
-	public:
-		port()
-			: _port(0)
-		{}
-
-		port(const port& val)
-			: _port(val._port)
-		{}
-
-		bool operator !=(const port& of) { return _port != of._port; }
-		bool operator ==(const port& of) { return _port == of._port; }
-
-		port& operator=(const port& val)
-		{
-			_port = val._port;
-			return *this;
-		}
-
-		port(int _Port);
-		
-		inline uint16_t native_port() const
-		{
-			return _port;
-		}
-
-		friend std::ostream& operator <<(std::ostream& _Stream, const port& _Port);
-	private:
-
-		uint16_t _port;
-	};
-
-	std::ostream& operator <<(std::ostream& _Stream, const port& _Port);
-
-	enum address_famaly : int
+	typedef std::uint16_t port;
+	
+	enum class address_famaly : int
 	{
 		internet_network,
 		internet_network_ipv6
 	};
 
-	enum socket_type : int
+	enum class socket_type : int
 	{
 		stream,
-		dgram
+		dgram,
+		raw
 	};
 
-	enum protocol_type : int
+	enum class protocol_type : int
 	{
 		tcp,
 		udp,
-		ip
+		ip,
+		raw
 	};
 
-	class socket_address
+
+	class ip_end_point 
 	{
 	public:
-		virtual ~socket_address() {}
+		ip_end_point(ip_address _Address, port port);
+		ip_end_point(ip_address_v6 _Address, port port);
 
-		socket_address(const socket_address&) = default;
+		ip_end_point(const ip_end_point& _Address) = default;
+		ip_end_point& operator =(const ip_end_point& _Address) = default;
 
-		socket_address& operator=(const socket_address&) = default;
+		address_famaly get_famaly() const;
 
-		socket_address()
-			: _famaly(address_famaly::internet_network)
-		{}
+		const void* native_address() const;
+		void* native_address();
+		std::int32_t& native_size();
+		std::int32_t native_size() const;
 
-		address_famaly get_famaly() const
-		{
-			return _famaly;
-		}
+		const ip_address& get_v4_address() const;
+		const ip_address_v6& get_v6_address() const;
 
-		address_famaly set_famaly(const address_famaly& _Famaly)
-		{
-			return _famaly = _Famaly;
-		}
+		port get_port() const;
 
-		virtual void serialaze(void* _Dest) const = 0;
+		bool equal(const ip_end_point& of) const;
 
-		virtual void deserialaze(const void* _Src) = 0;
+		bool operator !=(const ip_end_point& of) const;
+		bool operator ==(const ip_end_point& of) const;
 	private:
-
-		address_famaly _famaly;
-	};
-
-	class ip_socket_address : public socket_address
-	{
-	public:
-		~ip_socket_address() {}
-
-		ip_socket_address(const ip_socket_address& val)
-			: _address(val._address),
-			_port(val._port)
-		{
-			set_famaly(val.get_famaly());
-		}
-
-		ip_socket_address& operator=(const ip_socket_address& val)
-		{
-			_port = val._port;
-			_address = val._address;
-			return *this;
-		}
-
-		bool operator !=(const ip_socket_address& of) 
-		{
-			return
-				(_port != of._port) &&
-				(_address != of._address) &&
-				(get_famaly() != of.get_famaly());
-		
-		}
-		bool operator ==(const ip_socket_address& of) {
-			return
-				(_port == of._port) &&
-				(_address == of._address) &&
-				(get_famaly() == of.get_famaly());
-		}
-
-		ip_socket_address(ip_address _Ip, port _Port)
-			: _address(_Ip), _port(_Port)
-		{}
-
-		port get_port() const
-		{
-			return _port;
-		}
-
-		port set_port(const port& _Port)
-		{
-			return _port = _Port;
-		}
-
-		ip_address get_address() const
-		{
-			return _address;
-		}
-
-		ip_address set_address(const ip_address& _Address)
-		{
-			return _address = _Address;
-		}
-
-		virtual void serialaze(void* _Dest) const;
-
-		virtual void deserialaze(const void* _Src);
-	private:
-
-		port _port;
-
-		ip_address _address;
+		std::int32_t _address_size;
+		std::uint8_t _address[32];
 	};
 
 	enum class socket_shutdown : int
@@ -283,13 +259,13 @@ namespace ts
 
 		explicit socket(ts::address_famaly _Famaly, ts::socket_type _SocketTpye, ts::protocol_type _ProtocolType) throw(socket_exception);
 
-		explicit socket(socket_native_fd _NativeFd, const ip_socket_address& _RemoteAddres) throw(socket_exception);
+		explicit socket(socket_native_fd _NativeFd, const ip_end_point& _RemoteAddres) throw(socket_exception);
 
 		~socket();
 
 		void listen(int _MaxConnections) throw(socket_exception);
 
-		void bind(const socket_address& _EndPoint) throw(socket_exception);
+		void bind(const ip_end_point& _EndPoint) throw(socket_exception);
 
 		socket_native_fd get_native_fd();
 
@@ -301,15 +277,15 @@ namespace ts
 
 		base_option* get_option(int _OptionName, int _OptionLevel);*/
 
-		void connect(const socket_address& _To) throw(socket_exception);
+		void connect(const ip_end_point& _To) throw(socket_exception);
 
 		size_t send(const void* _Data, size_t _DataLen, socket_flags _Flags = socket_flags::none) throw(socket_exception);
 
 		size_t receive(void* _Data, size_t _DataLen, socket_flags _Flags = socket_flags::none) throw(socket_exception);
 		
-		size_t send_to(const void* _Data, size_t _DataLen, const socket_address& _To, socket_flags _Flags = socket_flags::none) throw(socket_exception);
+		size_t send_to(const void* _Data, size_t _DataLen, const ip_end_point& _To, socket_flags _Flags = socket_flags::none) throw(socket_exception);
 
-		size_t receive_from(void* _Data, size_t _DataLen, socket_address& _From, socket_flags _Flags = socket_flags::none) throw(socket_exception);
+		size_t receive_from(void* _Data, size_t _DataLen, ip_end_point& _From, socket_flags _Flags = socket_flags::none) throw(socket_exception);
 
 		socket accept() throw(socket_exception);
 
@@ -321,14 +297,14 @@ namespace ts
 
 		void shutdown(socket_shutdown _O) throw(socket_exception);
 
-		ts::ip_socket_address remote_endpoint();
+		ts::ip_end_point remote_endpoint();
 		
 		void set_noblocking(bool _Enabled) throw(socket_exception);
 		
 		size_t bytes_available() throw(socket_exception);
 	private:
 		
-		ts::ip_socket_address _endpoint;
+		ts::ip_end_point _endpoint;
 
 		socket_native_fd _fd;
 	};

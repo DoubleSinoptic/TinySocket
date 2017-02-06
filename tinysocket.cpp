@@ -1,8 +1,9 @@
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS
+
 #include "tinysocket.h"
 
 #if defined(_WIN32)
-	#define _WINSOCK_DEPRECATED_NO_WARNINGS
-	#define _CRT_SECURE_NO_WARNINGS
 	#include <WinSock2.h>
 	#if defined(_MSC_VER)
 		#pragma comment(lib,"ws2_32.lib") 
@@ -51,6 +52,19 @@
 
 	#define CHEK_SOCKET _wsintance.cheak()
 
+	struct in_addr6 
+	{
+		u_char    s6_addr[16];             /* IPv6 address */
+	};
+
+	struct sockaddr_in6 {
+
+		short             sin6_family;     /* AF_INET6 */
+		u_short           sin6_port;       /* Transport level port number */
+		u_long            sin6_flowinfo;   /* IPv6 flow information */
+		struct in_addr6   sin6_addr;       /* IPv6 address */
+		u_long            sin6_scope_id;   /* set of interfaces for a scope */
+	};
 #else
 	#include <sys/socket.h>
 	#include <sys/types.h>
@@ -71,6 +85,12 @@
 
 	#define INVALID_SOCKET -1	
 #endif
+
+
+
+
+
+
 
 
 ts::socket_native_error_code get_socket_error_code()
@@ -261,28 +281,13 @@ ts::protocol_type un_native_enum_protocol_type(int ttype)
 }
 
 
-
-
-
-
-ts::port::port(int _Port)
-{
-	_port = htons(_Port);
-}
-
 std::ostream & ts::operator<<(std::ostream & _Stream, const ip_address & _Address)
 {
 	return (_Stream << (inet_ntoa(*(in_addr*)&_Address)));
 }
 
-std::ostream & ts::operator<<(std::ostream & _Stream, const port & _Port)
-{
-	return (_Stream << htons(_Port._port));
-}
-
 ts::ip_address::ip_address(const char * _Address)
 {
-
 	this->_address = inet_addr(_Address);
 }
 
@@ -291,7 +296,7 @@ ts::ip_address::ip_address(uint32_t _NativeHotPost)
 	_address = _NativeHotPost;
 }
 
-ts::ip_address::ip_address(ip4_part _A, ip4_part _B, ip4_part _C, ip4_part _D)
+ts::ip_address::ip_address(ip_part _A, ip_part _B, ip_part _C, ip_part _D)
 	: _address(0)
 {
 	 
@@ -308,24 +313,24 @@ ts::ip_address::ip_address(ip4_part _A, ip4_part _B, ip4_part _C, ip4_part _D)
 	//_address = htonl(_address);
 }
 
-
-void ts::ip_socket_address::serialaze(void * _Dest) const
-{
-	sockaddr_in* _r = (sockaddr_in*)_Dest;
-	memset(_r, 0, sizeof(sockaddr_in));
-	_r->sin_family = native_enum_address_famaly(get_famaly());
-	_r->sin_port = get_port().native_port();
-	_r->sin_addr.s_addr = get_address().native_address();
-}
-
-void ts::ip_socket_address::deserialaze(const void * _Src)
-{
-	sockaddr_in* _r = (sockaddr_in*)_Src;
-	set_famaly(un_native_enum_address_famaly(_r->sin_family));
-	set_port(htons(_r->sin_port));
-	set_address(ip_address(_r->sin_addr.s_addr));
-
-}
+//
+//void ts::ip_socket_address::serialaze(void * _Dest) const
+//{
+//	sockaddr_in* _r = (sockaddr_in*)_Dest;
+//	memset(_r, 0, sizeof(sockaddr_in));
+//	_r->sin_family = native_enum_address_famaly(get_famaly());
+//	_r->sin_port = get_port().native_port();
+//	_r->sin_addr.s_addr = get_address().native_address();
+//}
+//
+//void ts::ip_socket_address::deserialaze(const void * _Src)
+//{
+//	sockaddr_in* _r = (sockaddr_in*)_Src;
+//	set_famaly(un_native_enum_address_famaly(_r->sin_family));
+//	set_port(htons(_r->sin_port));
+//	set_address(ip_address(_r->sin_addr.s_addr));
+//
+//}
 
 std::size_t totalBytesSended = 0;
 std::size_t totalBytesReceived = 0;
@@ -340,7 +345,7 @@ std::size_t ts::socket::get_total_bytes_received()
 }
 
 ts::socket::socket(ts::address_famaly _Famaly, ts::socket_type _SocketTpye, ts::protocol_type _ProtocolType)  throw(socket_exception)
-	: _endpoint(ts::ip_socket_address(ts::ip_address_none, 0))
+	: _endpoint(ts::ip_end_point(ts::ip_address_none, 0))
 {
 	CHEK_SOCKET;
 
@@ -353,8 +358,8 @@ ts::socket::socket(ts::address_famaly _Famaly, ts::socket_type _SocketTpye, ts::
 		throw socket_exception("error: of create socket", get_socket_error_code());
 }
 
-ts::socket::socket(socket_native_fd _NativeFd, const ip_socket_address& _RemoteAddres) throw(socket_exception)
-	: _endpoint(ts::ip_socket_address(ts::ip_address_none, 0))
+ts::socket::socket(socket_native_fd _NativeFd, const ip_end_point& _RemoteAddres) throw(socket_exception)
+	: _endpoint(ts::ip_end_point(ts::ip_address_none, 0))
 {
 	_fd = _NativeFd;
 	_endpoint = _RemoteAddres;
@@ -374,14 +379,9 @@ void ts::socket::listen(int _maxconnections) throw(socket_exception)
 
 }
 
-void ts::socket::bind(const socket_address & _EndPoint) throw(socket_exception)
+void ts::socket::bind(const ip_end_point & _EndPoint) throw(socket_exception)
 {
-	
-	sockaddr isp;
-
-	_EndPoint.serialaze(&isp);
-
-	if (::bind(_fd, &isp, sizeof(isp)))
+	if (::bind(_fd, (sockaddr*)_EndPoint.native_address(), _EndPoint.native_size()))
 	{
 		//std::cout << WSAGetLastError() << std::endl;
 		throw socket_exception("error: of bind socket", get_socket_error_code());
@@ -433,16 +433,13 @@ void ts::socket::tcp_no_delay(bool enabled) throw(ts::socket_exception)
 		throw socket_exception("error: socket: of set option to", get_socket_error_code());
 }
 
-void ts::socket::connect(const socket_address & _To) throw(socket_exception)
+void ts::socket::connect(const ip_end_point & _To) throw(socket_exception)
 {
-	sockaddr addr_to; 
-	_To.serialaze(&addr_to);
 	
-	if (::connect(_fd, &addr_to, sizeof(sockaddr))) 
+	if (::connect(_fd, (sockaddr*)_To.native_address(), _To.native_size()))
 	{
 		throw socket_exception("error: socket: of connect to", get_socket_error_code());
 	}
-	_endpoint.deserialaze(&_To);
 }
 
 size_t ts::socket::send(const void * _Data, size_t _DataLen, socket_flags flags) throw(socket_exception)
@@ -464,12 +461,10 @@ size_t ts::socket::receive(void * _Data, size_t _DataLen, socket_flags flags) th
 }
 
 #include <iostream>
-size_t ts::socket::send_to(const void * _Data, size_t _DataLen, const socket_address & _To, socket_flags flags) throw(socket_exception)
+size_t ts::socket::send_to(const void * _Data, size_t _DataLen, const ip_end_point & _To, socket_flags flags) throw(socket_exception)
 {
 	totalBytesSended += _DataLen;
-	sockaddr data;
-	_To.serialaze(&data);
-	int rret = ::sendto(_fd, (const char*)_Data, _DataLen, (int)flags, &data, sizeof(sockaddr));
+	int rret = ::sendto(_fd, (const char*)_Data, _DataLen, (int)flags, (sockaddr*)_To.native_address(), _To.native_size());
 	if (rret < 0) {
 		//std::cout << WSAGetLastError() << std::endl;
 		throw socket_exception("error: socket: of send data to endpoint", get_socket_error_code());
@@ -478,46 +473,38 @@ size_t ts::socket::send_to(const void * _Data, size_t _DataLen, const socket_add
 	return rret;
 }
 
-size_t ts::socket::receive_from(void * _Data, size_t _DataLen, socket_address & _From, socket_flags flags) throw(socket_exception)
+size_t ts::socket::receive_from(void * _Data, size_t _DataLen, ip_end_point & _From, socket_flags flags) throw(socket_exception)
 {
 	totalBytesReceived += _DataLen;
-	socklen_t fromlen = sizeof(sockaddr);
-	sockaddr data;
-	_From.serialaze(&data);
-	
-	int rret = ::recvfrom(_fd, (char*)_Data, _DataLen, (int)flags, &data, &fromlen);
+
+	int rret = ::recvfrom(_fd, (char*)_Data, _DataLen, (int)flags, (sockaddr*)_From.native_address(), &_From.native_size());
 	if (rret < 0) {
 		//std::cout << WSAGetLastError() << std::endl;
 		throw socket_exception("error: socket: of receive from data from endpoint", get_socket_error_code());
 	
 	}
-	_From.deserialaze(&data);
+
 	return rret;
 }
 
 ts::socket ts::socket::accept() throw(socket_exception)
 {
-	sockaddr recv;
-	socklen_t len = sizeof(sockaddr);
-	memset(&recv, 0, sizeof(recv));
-	int e = ::accept(_fd, &recv, &len);
+	ip_end_point a(ip_address_none, 0);
+	int e = ::accept(_fd, (sockaddr*)a.native_address(), &a.native_size());
 	if (e == INVALID_SOCKET)
 		throw socket_exception("error: of accept socket", get_socket_error_code());
-	_endpoint.deserialaze(&recv);
-	return socket(e, _endpoint);
+	
+	return socket(e, a);
 
 }
 
 ts::socket * ts::socket::accept_new() throw(socket_exception)
 {
-	sockaddr recv;
-	socklen_t len = 0;
-	memset(&recv, 0, sizeof(recv));
-	ts::socket_native_fd e = ::accept(_fd, &recv, &len);
+	ip_end_point a(ip_address_none, 0);
+	ts::socket_native_fd e = ::accept(_fd, (sockaddr*)a.native_address(), &a.native_size());
 	if (e == INVALID_SOCKET)
 		throw socket_exception("error: of accept socket", get_socket_error_code());
-	_endpoint.deserialaze(&recv);
-	return new socket(e, _endpoint);
+	return new socket(e, a);
 }
 
 void ts::socket::close()
@@ -534,7 +521,7 @@ void ts::socket::shutdown(socket_shutdown _O) throw(socket_exception)
 		throw socket_exception("error: of shutdown socket", get_socket_error_code());
 }
 
-ts::ip_socket_address ts::socket::remote_endpoint()
+ts::ip_end_point ts::socket::remote_endpoint()
 {
 	return _endpoint;
 }
@@ -552,4 +539,86 @@ size_t ts::socket::bytes_available() throw(socket_exception)
 	if(::_sioct(_fd, FIONREAD,&bytes_available))
 		throw socket_exception("error: of get bytes_available socket (ioctl)", get_socket_error_code());	
 	return bytes_available;
+}
+
+ts::ip_end_point::ip_end_point(ip_address _Address, port port)
+{
+	memset(_address, 0, sizeof(_address));
+	_address_size = sizeof(sockaddr_in);
+	sockaddr_in* in = (sockaddr_in*)_address;
+	in->sin_family = AF_INET;
+	in->sin_port = htons(port);
+	in->sin_addr.s_addr = _Address.native_address();
+}
+
+ts::ip_end_point::ip_end_point(ip_address_v6 _Address, port port)
+{
+	memset(_address, 0, sizeof(_address));
+	_address_size = sizeof(sockaddr_in6);
+	sockaddr_in6* in = (sockaddr_in6*)_address;
+	in->sin6_family = AF_INET6;
+	in->sin6_port = htons(port);
+	memcpy(in->sin6_addr.s6_addr, _Address.native_address(), 16);
+}
+
+ts::address_famaly ts::ip_end_point::get_famaly() const
+{
+	return un_native_enum_address_famaly(((sockaddr*)_address)->sa_family);
+}
+
+const void * ts::ip_end_point::native_address() const
+{
+	return _address;
+}
+
+void * ts::ip_end_point::native_address()
+{
+	return _address;
+}
+
+std::int32_t & ts::ip_end_point::native_size()
+{
+	return _address_size;
+}
+std::int32_t ts::ip_end_point::native_size() const
+{
+	return _address_size;
+}
+const ts::ip_address & ts::ip_end_point::get_v4_address() const
+{
+	return *((ts::ip_address*)&(((sockaddr_in*)_address)->sin_addr.s_addr));
+}
+
+const ts::ip_address_v6 & ts::ip_end_point::get_v6_address() const
+{
+	return *((ts::ip_address_v6*)(((sockaddr_in6*)_address)->sin6_addr.s6_addr));
+}
+
+ts::port ts::ip_end_point::get_port() const
+{
+	return htons(((sockaddr_in*)_address)->sin_port);
+}
+
+bool ts::ip_end_point::equal(const ip_end_point & of) const
+{
+	if (get_famaly() != of.get_famaly())
+		return true;
+	if (get_famaly() == ts::address_famaly::internet_network)
+	{
+		return (get_port() == of.get_port()) && (of.get_v4_address() == get_v4_address());
+	}
+	if (get_famaly() == ts::address_famaly::internet_network_ipv6)
+	{
+		return (get_port() == of.get_port()) && (of.get_v6_address() == get_v6_address());
+	}
+}
+
+bool ts::ip_end_point::operator!=(const ip_end_point & of) const
+{
+	return !equal(of);
+}
+
+bool ts::ip_end_point::operator==(const ip_end_point & of) const
+{
+	return equal(of);
 }
