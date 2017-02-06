@@ -601,16 +601,19 @@ ts::port ts::ip_end_point::get_port() const
 
 bool ts::ip_end_point::equal(const ip_end_point & of) const
 {
-	if (get_famaly() != of.get_famaly())
-		return true;
-	if (get_famaly() == ts::address_famaly::internet_network)
+	if (get_famaly() == of.get_famaly())
 	{
-		return (get_port() == of.get_port()) && (of.get_v4_address() == get_v4_address());
+		if (get_famaly() == ts::address_famaly::internet_network)
+		{
+			return (get_port() == of.get_port()) && (of.get_v4_address() == get_v4_address());
+		}
+		if (get_famaly() == ts::address_famaly::internet_network_ipv6)
+		{
+			return (get_port() == of.get_port()) && (of.get_v6_address() == get_v6_address());
+		}
 	}
-	if (get_famaly() == ts::address_famaly::internet_network_ipv6)
-	{
-		return (get_port() == of.get_port()) && (of.get_v6_address() == get_v6_address());
-	}
+	return false;
+
 }
 
 bool ts::ip_end_point::operator!=(const ip_end_point & of) const

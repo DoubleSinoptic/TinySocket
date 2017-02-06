@@ -80,7 +80,7 @@ namespace ts
 		friend std::ostream& operator <<(std::ostream& _Stream, const ip_address_v6& _Address) 
 		{
 			for (int i = 0; i < 16; i++)
-				_Stream << std::hex << _Address._address[0] << (i != 15) ? ":" : "";
+				_Stream << std::hex << _Address._address[i] << (i != 15) ? ":" : "";
 			return _Stream;
 		}
 
