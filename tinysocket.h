@@ -286,13 +286,13 @@ namespace ts
 
 		size_t receive_from(void* _Data, size_t _DataLen, ip_end_point& _From, socket_flags _Flags = socket_flags::none) throw(socket_exception);
 
-	    int send_some(const void* _Data, size_t _DataLen, socket_flags _Flags = socket_flags::none) throw(socket_exception);
+	    int send_some(const void* _Data, size_t _DataLen, socket_flags _Flags = socket_flags::none) throw();
 
-		int receive_some(void* _Data, size_t _DataLen, socket_flags _Flags = socket_flags::none) throw(socket_exception);
+		int receive_some(void* _Data, size_t _DataLen, socket_flags _Flags = socket_flags::none) throw();
 		
-		int send_to_some(const void* _Data, size_t _DataLen, const ip_end_point& _To, socket_flags _Flags = socket_flags::none) throw(socket_exception);
+		int send_to_some(const void* _Data, size_t _DataLen, const ip_end_point& _To, socket_flags _Flags = socket_flags::none) throw();
 
-		int receive_from_some(void* _Data, size_t _DataLen, ip_end_point& _From, socket_flags _Flags = socket_flags::none) throw(socket_exception);
+		int receive_from_some(void* _Data, size_t _DataLen, ip_end_point& _From, socket_flags _Flags = socket_flags::none) throw();
 
 		socket accept() throw(socket_exception);
 

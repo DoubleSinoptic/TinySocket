@@ -441,25 +441,25 @@ void ts::socket::connect(const ip_end_point & _To) throw(socket_exception)
 		throw socket_exception("error: socket: of connect to", get_socket_error_code());	
 }
 
-int ts::socket::send_some(const void * _Data, size_t _DataLen, socket_flags flags) throw(socket_exception)
+int ts::socket::send_some(const void * _Data, size_t _DataLen, socket_flags flags) throw()
 {
 	totalBytesSended += _DataLen;
 	return ::send(_fd, (const char*)_Data, _DataLen, (int)flags);
 }
 
-int ts::socket::receive_some(void * _Data, size_t _DataLen, socket_flags flags) throw(socket_exception)
+int ts::socket::receive_some(void * _Data, size_t _DataLen, socket_flags flags) throw()
 {
 	totalBytesReceived += _DataLen;
 	return ::recv(_fd, (char*)_Data, _DataLen, (int)flags);
 }
 
-int ts::socket::send_to_some(const void * _Data, size_t _DataLen, const ip_end_point & _To, socket_flags flags) throw(socket_exception)
+int ts::socket::send_to_some(const void * _Data, size_t _DataLen, const ip_end_point & _To, socket_flags flags) throw()
 {
 	totalBytesSended += _DataLen;
 	return ::sendto(_fd, (const char*)_Data, _DataLen, (int)flags, (sockaddr*)_To.native_address(), _To.native_size());
 }
 
-int ts::socket::receive_from_some(void * _Data, size_t _DataLen, ip_end_point & _From, socket_flags flags) throw(socket_exception)
+int ts::socket::receive_from_some(void * _Data, size_t _DataLen, ip_end_point & _From, socket_flags flags) throw()
 {
 	totalBytesReceived += _DataLen;
 	return ::recvfrom(_fd, (char*)_Data, _DataLen, (int)flags, (sockaddr*)_From.native_address(), (socklen_t*)&_From.native_size());
