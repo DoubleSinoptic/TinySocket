@@ -435,11 +435,32 @@ void ts::socket::tcp_no_delay(bool enabled) throw(ts::socket_exception)
 
 void ts::socket::connect(const ip_end_point & _To) throw(socket_exception)
 {
-	
 	if (::connect(_fd, (sockaddr*)_To.native_address(), _To.native_size()))
-	{
-		throw socket_exception("error: socket: of connect to", get_socket_error_code());
-	}
+		throw socket_exception("error: socket: of connect to", get_socket_error_code());	
+}
+
+int ts::socket::send(const void * _Data, size_t _DataLen, socket_flags flags) throw(socket_exception)
+{
+	totalBytesSended += _DataLen;
+	return ::send(_fd, (const char*)_Data, _DataLen, (int)flags);
+}
+
+int ts::socket::receive(void * _Data, size_t _DataLen, socket_flags flags) throw(socket_exception)
+{
+	totalBytesReceived += _DataLen;
+	return ::recv(_fd, (char*)_Data, _DataLen, (int)flags);
+}
+
+int ts::socket::send_to(const void * _Data, size_t _DataLen, const ip_end_point & _To, socket_flags flags) throw(socket_exception)
+{
+	totalBytesSended += _DataLen;
+	return ::sendto(_fd, (const char*)_Data, _DataLen, (int)flags, (sockaddr*)_To.native_address(), _To.native_size());
+}
+
+int ts::socket::receive_from(void * _Data, size_t _DataLen, ip_end_point & _From, socket_flags flags) throw(socket_exception)
+{
+	totalBytesReceived += _DataLen;
+	return ::recvfrom(_fd, (char*)_Data, _DataLen, (int)flags, (sockaddr*)_From.native_address(), (socklen_t*)&_From.native_size());
 }
 
 size_t ts::socket::send(const void * _Data, size_t _DataLen, socket_flags flags) throw(socket_exception)
@@ -460,16 +481,12 @@ size_t ts::socket::receive(void * _Data, size_t _DataLen, socket_flags flags) th
 	return rret;
 }
 
-#include <iostream>
 size_t ts::socket::send_to(const void * _Data, size_t _DataLen, const ip_end_point & _To, socket_flags flags) throw(socket_exception)
 {
 	totalBytesSended += _DataLen;
 	int rret = ::sendto(_fd, (const char*)_Data, _DataLen, (int)flags, (sockaddr*)_To.native_address(), _To.native_size());
-	if (rret < 0) {
-		//std::cout << WSAGetLastError() << std::endl;
+	if (rret < 0) 
 		throw socket_exception("error: socket: of send data to endpoint", get_socket_error_code());
-	
-	}	
 	return rret;
 }
 
@@ -478,12 +495,8 @@ size_t ts::socket::receive_from(void * _Data, size_t _DataLen, ip_end_point & _F
 	totalBytesReceived += _DataLen;
 
 	int rret = ::recvfrom(_fd, (char*)_Data, _DataLen, (int)flags, (sockaddr*)_From.native_address(), (socklen_t*)&_From.native_size());
-	if (rret < 0) {
-		//std::cout << WSAGetLastError() << std::endl;
+	if (rret < 0) 
 		throw socket_exception("error: socket: of receive from data from endpoint", get_socket_error_code());
-	
-	}
-
 	return rret;
 }
 
@@ -492,10 +505,8 @@ ts::socket ts::socket::accept() throw(socket_exception)
 	ip_end_point a(ip_address_none, 0);
 	int e = ::accept(_fd, (sockaddr*)a.native_address(), (socklen_t*)&a.native_size());
 	if (e == INVALID_SOCKET)
-		throw socket_exception("error: of accept socket", get_socket_error_code());
-	
+		throw socket_exception("error: of accept socket", get_socket_error_code());	
 	return socket(e, a);
-
 }
 
 ts::socket * ts::socket::accept_new() throw(socket_exception)
