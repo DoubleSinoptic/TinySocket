@@ -2,6 +2,8 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 #include "tinysocket.h"
+#include <mutex>
+#include <utility>
 
 #if defined(_WIN32)
 	#include <WinSock2.h>
