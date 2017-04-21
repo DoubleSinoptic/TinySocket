@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <exception>
 #include <cstring>
+#include <string>
 
 namespace ts
 {
@@ -60,26 +61,14 @@ namespace ts
 			_address[14] = part14;
 			_address[15] = part15;
 		}
-		explicit ip_address_v6(ip_part* value) 
+		explicit ip_address_v6(const ip_part* value) 
 		{
 			std::memcpy(_address, value, 16);
-		}
-
-		explicit ip_address_v6(const char* _Address) 
-		{
-			throw socket_exception("", -1);
 		}
 
 		ip_address_v6(const ip_address_v6& val) 
 		{
 			std::memcpy(_address, val._address, 16);
-		}
-
-		friend std::ostream& operator <<(std::ostream& _Stream, const ip_address_v6& _Address) 
-		{
-			for (int i = 0; i < 16; i++)
-				_Stream << std::hex << _Address._address[i] << (i != 15) ? ":" : "";
-			return _Stream;
 		}
 
 		const ip_part* native_address() const
@@ -97,14 +86,19 @@ namespace ts
 		{ 
 			return std::memcmp(_address, of._address, 16);
 		}
+
 		bool operator ==(const ip_address_v6& of) const
 		{ 
 			return !std::memcmp(_address, of._address, 16);
 		}
 
+		static ip_address_v6 from_string(const std::string& _String);
+
 	private:
 		ip_part _address[16];
 	};
+
+	std::ostream& operator <<(std::ostream& _Stream, const ip_address_v6& _Addr);
 
 	class ip_address
 	{
@@ -112,15 +106,13 @@ namespace ts
 
 		explicit ip_address(ip_part _A, ip_part _B, ip_part _C, ip_part _D);
 
-		explicit ip_address(const char* _Address);
+		explicit ip_address(const ip_part* _Address);
 
 		explicit ip_address(uint32_t _NativeHotPost);
 
 		ip_address(const ip_address& val)
 			: _address(val._address)
 		{}
-
-		friend std::ostream& operator <<(std::ostream& _Stream, const ip_address& _Address);
 
 		uint32_t native_address() const
 		{
@@ -132,14 +124,17 @@ namespace ts
 			_address = val._address;
 			return *this;
 		}
+
+		static ip_address from_string(const std::string& _String);
+
 		bool operator !=(const ip_address& of) const { return _address != of._address; }
 		bool operator ==(const ip_address& of) const { return _address == of._address; }
 
 	private:
-		uint32_t _address;
+		uint32_t _address;		
 	};
 
-	std::ostream& operator <<(std::ostream& _Stream, const ip_address& _Address);
+	std::ostream& operator <<(std::ostream& _Stream, const ip_address& _Addr);
 
 	const ip_address ip_address_any(0, 0, 0, 0);
 
@@ -172,7 +167,6 @@ namespace ts
 		raw
 	};
 
-
 	class ip_end_point 
 	{
 	public:
@@ -202,6 +196,8 @@ namespace ts
 		std::uint32_t _address_size;
 		std::uint8_t _address[32];
 	};
+
+	std::ostream& operator <<(std::ostream& _Stream, const ip_end_point& _Addr);
 
 	enum class socket_shutdown : int
 	{
@@ -245,9 +241,9 @@ namespace ts
 		return lhs;
 	}
 
-	
 	class socket
 	{
+		explicit socket(socket_native_fd _NativeFd, const ip_end_point& _RemoteAddres) throw(socket_exception);
 	public:
 
 		static std::size_t get_total_bytes_sended();
@@ -258,7 +254,7 @@ namespace ts
 
 		explicit socket(ts::address_famaly _Famaly, ts::socket_type _SocketTpye, ts::protocol_type _ProtocolType) throw(socket_exception);
 
-		explicit socket(socket_native_fd _NativeFd, const ip_end_point& _RemoteAddres) throw(socket_exception);
+		explicit socket(ts::protocol_type _ProtocolType) throw(socket_exception);
 
 		~socket();
 
@@ -309,16 +305,14 @@ namespace ts
 		void set_noblocking(bool _Enabled) throw(socket_exception);
 		
 		size_t bytes_available() throw(socket_exception);
+
+		bool is_connected() const;
 	private:
 		
-		ts::ip_end_point _endpoint;
-
+		ip_end_point _remoteEndpoint;
 		socket_native_fd _fd;
+		bool _isConnected;
 	};
-
-
-
-
 }
 
 #endif //__TINY_SOCKET_H__
