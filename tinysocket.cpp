@@ -8,6 +8,7 @@
 #if defined(_WIN32)
 	#include <WinSock2.h>
 	#include <Ws2tcpip.h>
+	#include <Windows.h>
 	#if defined(_MSC_VER)
 		#pragma comment(lib,"ws2_32.lib") 
 	#endif	
@@ -16,6 +17,12 @@
 	#define _sioct ioctlsocket
 	#define _sclose closesocket
 	#define _ssuberrorconst 10038
+
+	#if defined( __GNUC__)
+		INT WSAAPI inet_pton(INT Family, PCSTR pszAddrString, PVOID pAddrBuf);
+		INT	WSAAPI inet_ntop(INT Family, const VOID * pAddr,  PSTR pStringBuf, size_t StringBufSize);
+	#endif
+
 
 	char exception_buffer[2048];
 	class ws2data_quard
