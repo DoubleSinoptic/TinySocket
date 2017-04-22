@@ -534,7 +534,7 @@ size_t ts::socket::receive_from(void * _Data, size_t _DataLen, ip_end_point & _F
 
 ts::socket ts::socket::accept() throw(socket_exception)
 {
-	ip_end_point a(ip_address_none, 0);
+	ip_end_point a;
 	int e = ::accept(_fd, (sockaddr*)a.native_address(), (socklen_t*)&a.native_size());
 	if (e == INVALID_SOCKET)
 		throw socket_exception("error: of accept socket", get_socket_error_code());	
@@ -607,6 +607,12 @@ ts::ip_end_point::ip_end_point(ip_address_v6 _Address, port port)
 	in->sin6_family = AF_INET6;
 	in->sin6_port = htons(port);
 	memcpy(in->sin6_addr.s6_addr, _Address.native_address(), 16);
+}
+
+ts::ip_end_point::ip_end_point()
+{
+	memset(_address, 0, sizeof(_address));
+	_address_size = sizeof(_address);
 }
 
 ts::address_famaly ts::ip_end_point::get_famaly() const

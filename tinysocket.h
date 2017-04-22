@@ -175,6 +175,7 @@ namespace ts
 	public:
 		ip_end_point(ip_address _Address, port _Port);
 		ip_end_point(ip_address_v6 _Address, port _Port);
+		ip_end_point();
 
 		ip_end_point(const ip_end_point& _Address) = default;
 		ip_end_point& operator =(const ip_end_point& _Address) = default;
@@ -299,7 +300,7 @@ namespace ts
 
 		socket* accept_new() throw(socket_exception);
 
-		void tcp_no_delay(bool enabled)  throw(socket_exception);	
+		void tcp_no_delay(bool _Enabled)  throw(socket_exception);	
 
 		void close();
 
