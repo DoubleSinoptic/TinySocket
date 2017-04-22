@@ -23,58 +23,42 @@
 		INT	WSAAPI inet_ntop(INT Family, const VOID * pAddr,  PSTR pStringBuf, size_t StringBufSize);
 	#endif
 
-
 	char exception_buffer[2048];
 	class ws2data_quard
-	{
-		
+	{	
 	public:
 		ws2data_quard()
 		{
 			std::lock_guard<std::mutex> _(_lockRoot);
-			is_init = false;
-			if (::WSAStartup( MAKEWORD(2, 2) , &wsa) != 0)
+			_isInit = false;
+			if (::WSAStartup( MAKEWORD(2, 2) , &_data) != 0)
 			{
-				std::sprintf(exception_buffer, "wsa startup failed: error code: %d", WSAGetLastError());
+				std::sprintf(exception_buffer, "error: WSA startup failed: error code: %d", WSAGetLastError());
 				throw std::runtime_error(exception_buffer);
 			}
-			is_init = true;
+			_isInit = true;
 		}
 		~ws2data_quard()
 		{
 			std::lock_guard<std::mutex> _(_lockRoot);
-			if (is_init)
+			if (_isInit)
 				::WSACleanup();
 		}
 
-		void cheak() 
+		void chek() 
 		{
 			std::lock_guard<std::mutex> _(_lockRoot);
-			if(!is_init)
-				throw std::runtime_error("error: wsa not startup");
+			if(!_isInit)
+				throw std::runtime_error("error: WSA not startup");
 		}
 
 	private:
 		std::mutex _lockRoot;
-		bool is_init;
-		WSADATA wsa;
+		bool _isInit;
+		WSADATA _data;
 	} _wsintance;
 
-	#define CHEK_SOCKET _wsintance.cheak()
-
-	//struct in_addr6 
-	//{
-	//	u_char    s6_addr[16];             /* IPv6 address */
-	//};
-
-	//struct sockaddr_in6 {
-
-	//	short             sin6_family;     /* AF_INET6 */
-	//	u_short           sin6_port;       /* Transport level port number */
-	//	u_long            sin6_flowinfo;   /* IPv6 flow information */
-	//	struct in_addr6   sin6_addr;       /* IPv6 address */
-	//	u_long            sin6_scope_id;   /* set of interfaces for a scope */
-	//};
+	#define CHEK_SOCKET _wsintance.chek()
 #else
 	#include <sys/socket.h>
 	#include <sys/types.h>
@@ -86,7 +70,6 @@
 	#include <string.h>
 	#include <errno.h>
 
-	
 	#define _sioct ioctl
 	#define _sclose close
 	#define _ssuberrorconst 88 
@@ -95,13 +78,6 @@
 
 	#define INVALID_SOCKET -1	
 #endif
-
-
-
-
-
-
-
 
 ts::socket_native_error_code get_socket_error_code()
 {
@@ -142,7 +118,6 @@ const char* socket_errors[] = {
 		"host unreachable"
 	};
 
-
 const char* errormsg_from_native_code(ts::socket_native_error_code code)
 {
 	ts::socket_native_error_code native_code = code - _ssuberrorconst;
@@ -175,7 +150,6 @@ ts::socket_native_error_code ts::socket_exception::system_error_code() const thr
 	return _code;
 }
 
-
 int native_enum_socket_type(ts::socket_type ttype)
 {
 	switch (ttype)
@@ -193,6 +167,7 @@ int native_enum_socket_type(ts::socket_type ttype)
 		return -1;
 	}
 }
+
 ts::socket_type un_native_enum_socket_type(int ttype)
 {
 	switch (ttype)
@@ -211,13 +186,6 @@ ts::socket_type un_native_enum_socket_type(int ttype)
 	}
 }
 
-
-
-
-
-
-
-
 int native_enum_address_famaly(ts::address_famaly ttype)
 {
 	switch (ttype)
@@ -225,7 +193,7 @@ int native_enum_address_famaly(ts::address_famaly ttype)
 	case ts::address_famaly::internet_network:
 		return AF_INET;
 		break;
-	case ts::address_famaly::internet_network_ipv6:
+	case ts::address_famaly::internet_network_v6:
 		return AF_INET6;
 		break;
 	default:
@@ -240,14 +208,12 @@ ts::address_famaly un_native_enum_address_famaly(int ttype)
 		return ts::address_famaly::internet_network;
 		break;
 	case AF_INET6:
-		return ts::address_famaly::internet_network_ipv6;
+		return ts::address_famaly::internet_network_v6;
 		break;
 	default:
 		return (ts::address_famaly) - 1;
 	}
 }
-
-
 
 int native_enum_protocol_type(ts::protocol_type ttype)
 {
@@ -269,6 +235,7 @@ int native_enum_protocol_type(ts::protocol_type ttype)
 		return -1;
 	}
 }
+
 ts::protocol_type un_native_enum_protocol_type(int ttype)
 {
 	switch (ttype)
@@ -314,27 +281,7 @@ ts::ip_address::ip_address(ip_part _A, ip_part _B, ip_part _C, ip_part _D)
 	_address = _address << 8;
 
 	_address |= _A;
-	//_address = htonl(_address);
 }
-
-//
-//void ts::ip_socket_address::serialaze(void * _Dest) const
-//{
-//	sockaddr_in* _r = (sockaddr_in*)_Dest;
-//	memset(_r, 0, sizeof(sockaddr_in));
-//	_r->sin_family = native_enum_address_famaly(get_famaly());
-//	_r->sin_port = get_port().native_port();
-//	_r->sin_addr.s_addr = get_address().native_address();
-//}
-//
-//void ts::ip_socket_address::deserialaze(const void * _Src)
-//{
-//	sockaddr_in* _r = (sockaddr_in*)_Src;
-//	set_famaly(un_native_enum_address_famaly(_r->sin_family));
-//	set_port(htons(_r->sin_port));
-//	set_address(ip_address(_r->sin_addr.s_addr));
-//
-//}
 
 std::size_t totalBytesSended = 0;
 std::size_t totalBytesReceived = 0;
@@ -392,7 +339,7 @@ ts::socket::socket(ts::protocol_type _ProtocolType) throw(socket_exception)
 		native_enum_socket_type(type),
 		native_enum_protocol_type(_ProtocolType));
 
-	if (_fd == INVALID_SOCKET)
+	if (_fd == -1)
 		throw socket_exception("error: of create socket", get_socket_error_code());
 }
 
@@ -430,17 +377,6 @@ ts::socket_native_fd ts::socket::get_native_fd()
 {
 	return _fd;
 }
-
-//void ts::socket::set_option(int _Option)
-//{
-//
-//	
-//}
-//
-//int ts::socket::get_option()
-//{
-//	return 0;
-//}
 
 void ts::socket::set_receive_time_out(ms_time_out mssec) throw(socket_exception)
 {
@@ -552,7 +488,7 @@ ts::socket * ts::socket::accept_new() throw(socket_exception)
 {
 	ip_end_point a(ip_address_none, 0);
 	ts::socket_native_fd e = ::accept(_fd, (sockaddr*)a.native_address(), (socklen_t*)&a.native_size());
-	if (e == INVALID_SOCKET)
+	if (e == -1)
 		throw socket_exception("error: of accept socket", get_socket_error_code());
 	return new socket(e, a);
 }
@@ -666,7 +602,7 @@ bool ts::ip_end_point::equal(const ip_end_point & of) const
 	{
 		if (get_famaly() == ts::address_famaly::internet_network)
 			return (get_port() == of.get_port()) && (of.get_v4_address() == get_v4_address());
-		if (get_famaly() == ts::address_famaly::internet_network_ipv6)
+		if (get_famaly() == ts::address_famaly::internet_network_v6)
 			return (get_port() == of.get_port()) && (of.get_v6_address() == get_v6_address());	
 	}
 	return false;
@@ -686,7 +622,7 @@ bool ts::ip_end_point::operator==(const ip_end_point & of) const
 ts::ip_address_v6 ts::ip_address_v6::from_string(const std::string & _String)
 {
 	ip_part tmp[16];
-	::inet_pton(native_enum_address_famaly(ts::address_famaly::internet_network_ipv6), _String.c_str(), &tmp);
+	::inet_pton(native_enum_address_famaly(ts::address_famaly::internet_network_v6), _String.c_str(), &tmp);
 	return ts::ip_address_v6(tmp);
 }
 
@@ -708,7 +644,7 @@ std::ostream & ts::operator<<(std::ostream & _Stream, const ts::ip_address & _Ad
 std::ostream & ts::operator<<(std::ostream & _Stream, const ts::ip_address_v6 & _Addr)
 {
 	char tmp[256];
-	::inet_ntop(native_enum_address_famaly(ts::address_famaly::internet_network_ipv6), &_Addr, tmp, sizeof(tmp));
+	::inet_ntop(native_enum_address_famaly(ts::address_famaly::internet_network_v6), &_Addr, tmp, sizeof(tmp));
 	_Stream << tmp;
 	return _Stream;
 }
@@ -719,7 +655,7 @@ std::ostream & ts::operator<<(std::ostream & _Stream, const ip_end_point & _Addr
 	{
 		_Stream << _Addr.get_v4_address() << ":" << _Addr.get_port();
 	}
-	if (_Addr.get_famaly() == ts::address_famaly::internet_network_ipv6)
+	if (_Addr.get_famaly() == ts::address_famaly::internet_network_v6)
 	{
 		_Stream << '[' << _Addr.get_v6_address() << "]:" << _Addr.get_port();
 	}

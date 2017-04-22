@@ -152,7 +152,7 @@ namespace ts
 	enum class address_famaly : int
 	{
 		internet_network,
-		internet_network_ipv6
+		internet_network_v6
 	};
 
 	enum class socket_type : int
