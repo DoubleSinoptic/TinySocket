@@ -652,13 +652,9 @@ bool ts::ip_end_point::equal(const ip_end_point & of) const
 	if (get_famaly() == of.get_famaly())
 	{
 		if (get_famaly() == ts::address_famaly::internet_network)
-		{
 			return (get_port() == of.get_port()) && (of.get_v4_address() == get_v4_address());
-		}
 		if (get_famaly() == ts::address_famaly::internet_network_ipv6)
-		{
-			return (get_port() == of.get_port()) && (of.get_v6_address() == get_v6_address());
-		}
+			return (get_port() == of.get_port()) && (of.get_v6_address() == get_v6_address());	
 	}
 	return false;
 
@@ -690,7 +686,7 @@ ts::ip_address ts::ip_address::from_string(const std::string & _String)
 
 std::ostream & ts::operator<<(std::ostream & _Stream, const ts::ip_address & _Addr)
 {
-	char tmp[40];
+	char tmp[256];
 	::inet_ntop(native_enum_address_famaly(ts::address_famaly::internet_network), &_Addr, tmp, sizeof(tmp));
 	_Stream << tmp;
 	return _Stream;
@@ -698,7 +694,7 @@ std::ostream & ts::operator<<(std::ostream & _Stream, const ts::ip_address & _Ad
 
 std::ostream & ts::operator<<(std::ostream & _Stream, const ts::ip_address_v6 & _Addr)
 {
-	char tmp[140];
+	char tmp[256];
 	::inet_ntop(native_enum_address_famaly(ts::address_famaly::internet_network_ipv6), &_Addr, tmp, sizeof(tmp));
 	_Stream << tmp;
 	return _Stream;
@@ -712,7 +708,7 @@ std::ostream & ts::operator<<(std::ostream & _Stream, const ip_end_point & _Addr
 	}
 	if (_Addr.get_famaly() == ts::address_famaly::internet_network_ipv6)
 	{
-		_Stream << _Addr.get_v6_address() << ":" << _Addr.get_port();
+		_Stream << '[' << _Addr.get_v6_address() << "]:" << _Addr.get_port();
 	}
 	return _Stream;
 }

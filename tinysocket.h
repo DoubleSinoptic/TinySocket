@@ -98,12 +98,9 @@ namespace ts
 		ip_part _address[16];
 	};
 
-	std::ostream& operator <<(std::ostream& _Stream, const ip_address_v6& _Addr);
-
 	class ip_address
 	{
 	public:
-
 		explicit ip_address(ip_part _A, ip_part _B, ip_part _C, ip_part _D);
 
 		explicit ip_address(const ip_part* _Address);
@@ -134,8 +131,6 @@ namespace ts
 		uint32_t _address;		
 	};
 
-	std::ostream& operator <<(std::ostream& _Stream, const ip_address& _Addr);
-
 	const ip_address ip_address_any(0, 0, 0, 0);
 
 	const ip_address ip_address_loopback(0x7F, 0, 0, 0);
@@ -143,6 +138,14 @@ namespace ts
 	const ip_address ip_address_broadcast(0xFF, 0xFF, 0xFF, 0xFF);
 
 	const ip_address ip_address_none(0xFF, 0xFF, 0xFF, 0xFF);
+
+	const ip_address_v6 ip_address_v6_any(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+
+	const ip_address_v6 ip_address_v6_loopback(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1);
+
+	const ip_address_v6 ip_address_v6_broadcast(0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF);
+
+	const ip_address_v6 ip_address_v6_none(0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF);
 
 	typedef std::uint16_t port;
 	
@@ -170,8 +173,8 @@ namespace ts
 	class ip_end_point 
 	{
 	public:
-		ip_end_point(ip_address _Address, port port);
-		ip_end_point(ip_address_v6 _Address, port port);
+		ip_end_point(ip_address _Address, port _Port);
+		ip_end_point(ip_address_v6 _Address, port _Port);
 
 		ip_end_point(const ip_end_point& _Address) = default;
 		ip_end_point& operator =(const ip_end_point& _Address) = default;
@@ -188,15 +191,17 @@ namespace ts
 
 		port get_port() const;
 
-		bool equal(const ip_end_point& of) const;
+		bool equal(const ip_end_point& _Of) const;
 
-		bool operator !=(const ip_end_point& of) const;
-		bool operator ==(const ip_end_point& of) const;
+		bool operator !=(const ip_end_point& _Of) const;
+		bool operator ==(const ip_end_point& _Of) const;
 	private:
 		std::uint32_t _address_size;
 		std::uint8_t _address[32];
 	};
 
+	std::ostream& operator <<(std::ostream& _Stream, const ip_address& _Addr);
+	std::ostream& operator <<(std::ostream& _Stream, const ip_address_v6& _Addr);
 	std::ostream& operator <<(std::ostream& _Stream, const ip_end_point& _Addr);
 
 	enum class socket_shutdown : int
