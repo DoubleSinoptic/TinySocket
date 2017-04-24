@@ -33,7 +33,7 @@
 			_isInit = false;
 			if (::WSAStartup( MAKEWORD(2, 2) , &_data) != 0)
 			{
-				std::sprintf(exception_buffer, "error: WSA startup failed: error code: %d", WSAGetLastError());
+				std::sprintf(exception_buffer, "error: WSA startup failed: error code: %d", ::WSAGetLastError());
 				throw std::runtime_error(exception_buffer);
 			}
 			_isInit = true;
@@ -82,7 +82,7 @@
 ts::socket_native_error_code get_socket_error_code()
 {
 #if defined(_WIN32)
-	return WSAGetLastError();
+	return ::WSAGetLastError();
 #else
 	return errno;
 #endif
@@ -133,6 +133,14 @@ ts::socket_exception::socket_exception(const char * message, socket_native_error
 	snprintf(_exceptionMessgeBuffer, sizeof(_exceptionMessgeBuffer),
 		"%s: %s", message, errormsg_from_native_code(code));
 	
+}
+
+ts::socket_exception::socket_exception(const char * message)
+	: _code(-1)
+{
+	snprintf(_exceptionMessgeBuffer, sizeof(_exceptionMessgeBuffer),
+		"%s", message);
+
 }
 
 const char * ts::socket_exception::what() const throw()
@@ -296,7 +304,7 @@ std::size_t ts::socket::get_total_bytes_received()
 }
 
 ts::socket::socket(ts::address_famaly _Famaly, ts::socket_type _SocketTpye, ts::protocol_type _ProtocolType)  throw(socket_exception)
-	: _remoteEndpoint(ts::ip_end_point(ts::ip_address_none, 0)), _isConnected(false)
+	: _remoteEndpoint(ts::ip_end_point(ts::ip_address_none, 0)), _isConnected(false), _isListening(false)
 {
 	CHEK_SOCKET;
 
@@ -310,8 +318,10 @@ ts::socket::socket(ts::address_famaly _Famaly, ts::socket_type _SocketTpye, ts::
 }
 
 ts::socket::socket(ts::protocol_type _ProtocolType) throw(socket_exception)
-	: _remoteEndpoint(ts::ip_end_point(ts::ip_address_none, 0)), _isConnected(false)
+	: _remoteEndpoint(ts::ip_end_point(ts::ip_address_none, 0)), _isConnected(false), _isListening(false)
 {
+	CHEK_SOCKET;
+
 	address_famaly fam = address_famaly::internet_network;
 	socket_type type;
 	switch (_ProtocolType)
@@ -332,8 +342,6 @@ ts::socket::socket(ts::protocol_type _ProtocolType) throw(socket_exception)
 		throw socket_exception("error: invalid protocol type", -1);
 	}
 
-	CHEK_SOCKET;
-
 	_fd = ::socket(
 		native_enum_address_famaly(fam),
 		native_enum_socket_type(type),
@@ -344,7 +352,7 @@ ts::socket::socket(ts::protocol_type _ProtocolType) throw(socket_exception)
 }
 
 ts::socket::socket(socket_native_fd _NativeFd, const ip_end_point& _RemoteAddres) throw(socket_exception)
-	: _remoteEndpoint(ts::ip_end_point(ts::ip_address_none, 0)), _isConnected(false)
+	: _remoteEndpoint(ts::ip_end_point(ts::ip_address_none, 0)), _isConnected(false), _isListening(false)
 {
 	_fd = _NativeFd;
 	_remoteEndpoint = _RemoteAddres;
@@ -361,7 +369,7 @@ void ts::socket::listen(int _maxconnections) throw(socket_exception)
 	{
 		throw socket_exception("error: of listen socket", get_socket_error_code());
 	}
-
+	_isListening = true;
 }
 
 void ts::socket::bind(const ip_end_point & _EndPoint) throw(socket_exception)
@@ -497,6 +505,8 @@ void ts::socket::close()
 {
 	if (_fd == 0)
 		return;
+	if(_isConnected || _isListening)
+		::shutdown(_fd, static_cast<int>(socket_shutdown::both));
 	::_sclose(_fd);
 	_fd = 0;
 }
@@ -530,6 +540,11 @@ size_t ts::socket::bytes_available() throw(socket_exception)
 bool ts::socket::is_connected() const
 {
 	return _isConnected;
+}
+
+bool ts::socket::is_listening() const
+{
+	return _isListening;
 }
 
 ts::ip_end_point::ip_end_point(ip_address _Address, port port)
@@ -622,14 +637,16 @@ bool ts::ip_end_point::operator==(const ip_end_point & of) const
 ts::ip_address_v6 ts::ip_address_v6::from_string(const std::string & _String)
 {
 	ip_part tmp[16];
-	::inet_pton(native_enum_address_famaly(ts::address_famaly::internet_network_v6), _String.c_str(), &tmp);
+	if (::inet_pton(native_enum_address_famaly(ts::address_famaly::internet_network_v6), _String.c_str(), &tmp) < 1)
+		throw socket_exception("error: ivalid address format");
 	return ts::ip_address_v6(tmp);
 }
 
 ts::ip_address ts::ip_address::from_string(const std::string & _String)
 {
 	ip_part tmp[4];
-	::inet_pton(native_enum_address_famaly(ts::address_famaly::internet_network), _String.c_str(), &tmp);
+	if(::inet_pton(native_enum_address_famaly(ts::address_famaly::internet_network), _String.c_str(), &tmp) < 1)
+		throw socket_exception("error: ivalid address format");
 	return ts::ip_address(tmp);
 }
 
@@ -660,4 +677,46 @@ std::ostream & ts::operator<<(std::ostream & _Stream, const ip_end_point & _Addr
 		_Stream << '[' << _Addr.get_v6_address() << "]:" << _Addr.get_port();
 	}
 	return _Stream;
+}
+
+ts::dns_entry ts::dns_entry::get_host_by_name(const std::string & _Name)
+{
+	return get_host_by_name(_Name.c_str());
+}
+
+ts::dns_entry ts::dns_entry::get_host_by_name(const char * _Name)
+{
+	CHEK_SOCKET;
+	hostent* s = gethostbyname(_Name);
+	if (s == nullptr)
+		throw socket_exception("error: ivalid host name");
+	ts::dns_entry rezult;
+	if(s->h_name != nullptr)
+		rezult._name = s->h_name;
+	if (s->h_addrtype == native_enum_address_famaly(ts::address_famaly::internet_network))
+	{
+		
+		rezult._fam = ts::address_famaly::internet_network;
+		ts::ip_address* addr = reinterpret_cast<ts::ip_address*>(s->h_addr_list);
+		while (*addr != ts::ip_address_any)
+		{
+		
+			rezult._v4addresses.push_back(*addr);
+			addr++;
+		}
+
+	}
+
+	if (s->h_addrtype == native_enum_address_famaly(ts::address_famaly::internet_network_v6))
+	{
+		rezult._fam = ts::address_famaly::internet_network_v6;
+		ts::ip_address_v6* addr = reinterpret_cast<ts::ip_address_v6*>(s->h_addr_list);
+		while (*addr != ts::ip_address_v6_any)
+		{
+			rezult._v6addresses.push_back(*addr);
+			addr++;
+		}
+	}
+	return rezult;
+
 }

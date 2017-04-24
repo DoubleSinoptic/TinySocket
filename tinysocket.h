@@ -6,6 +6,7 @@
 #include <exception>
 #include <cstring>
 #include <string>
+#include <vector>
 
 namespace ts
 {
@@ -20,6 +21,7 @@ namespace ts
 	public:
 		
 		socket_exception(const char* message, socket_native_error_code code);
+		socket_exception(const char* message);
 
 		virtual const char* what() const throw();
 
@@ -101,6 +103,8 @@ namespace ts
 	class ip_address
 	{
 	public:
+		explicit ip_address() : _address(0) { }
+
 		explicit ip_address(ip_part _A, ip_part _B, ip_part _C, ip_part _D);
 
 		explicit ip_address(const ip_part* _Address);
@@ -313,11 +317,35 @@ namespace ts
 		size_t bytes_available() throw(socket_exception);
 
 		bool is_connected() const;
+
+		bool is_listening() const;
 	private:
 		
 		ip_end_point _remoteEndpoint;
 		socket_native_fd _fd;
 		bool _isConnected;
+		bool _isListening;
+	};
+
+	class dns_entry
+	{
+		std::vector<ip_address> _v4addresses;
+		std::vector<ip_address_v6> _v6addresses;
+		std::string _name;
+		address_famaly _fam;
+	public:
+		dns_entry(){}
+		dns_entry& operator =(const dns_entry&) = default;
+	    dns_entry(const dns_entry&) = default;
+		~dns_entry(){}
+
+		std::string get_name() const { return _name; }
+		std::vector<ip_address> get_v4_addresses() const { return _v4addresses; }
+		std::vector<ip_address_v6> get_v6_addresses() const { return _v6addresses; }
+		address_famaly get_address_famaly() const { return _fam;  }
+
+		static dns_entry get_host_by_name(const std::string& _Name);
+		static dns_entry get_host_by_name(const char* _Name);
 	};
 }
 
