@@ -69,6 +69,7 @@
 	#include <unistd.h>
 	#include <string.h>
 	#include <errno.h>
+	#include <netdb.h>
 
 	#define _sioct ioctl
 	#define _sclose close
@@ -694,19 +695,15 @@ ts::dns_entry ts::dns_entry::get_host_by_name(const char * _Name)
 	if(s->h_name != nullptr)
 		rezult._name = s->h_name;
 	if (s->h_addrtype == native_enum_address_famaly(ts::address_famaly::internet_network))
-	{
-		
+	{	
 		rezult._fam = ts::address_famaly::internet_network;
 		ts::ip_address* addr = reinterpret_cast<ts::ip_address*>(s->h_addr_list);
 		while (*addr != ts::ip_address_any)
-		{
-		
-			rezult._v4addresses.push_back(*addr);
+		{	
+    		rezult._v4addresses.push_back(*addr);
 			addr++;
 		}
-
 	}
-
 	if (s->h_addrtype == native_enum_address_famaly(ts::address_famaly::internet_network_v6))
 	{
 		rezult._fam = ts::address_famaly::internet_network_v6;
