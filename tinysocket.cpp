@@ -314,7 +314,7 @@ ts::socket::socket(ts::address_famaly _Famaly, ts::socket_type _SocketTpye, ts::
 		native_enum_socket_type(_SocketTpye),
 		native_enum_protocol_type(_ProtocolType));
 
-	if (_fd == INVALID_SOCKET) 
+	if (_fd == -1) 
 		throw socket_exception("error: of create socket", get_socket_error_code());
 }
 
@@ -377,7 +377,6 @@ void ts::socket::bind(const ip_end_point & _EndPoint) throw(socket_exception)
 {
 	if (::bind(_fd, (sockaddr*)_EndPoint.native_address(), _EndPoint.native_size()))
 	{
-		//std::cout << WSAGetLastError() << std::endl;
 		throw socket_exception("error: of bind socket", get_socket_error_code());
 	}
 }
@@ -690,27 +689,27 @@ ts::dns_entry ts::dns_entry::get_host_by_name(const char * _Name)
 	CHEK_SOCKET;
 	hostent* s = gethostbyname(_Name);
 	if (s == nullptr)
-		throw socket_exception("error: ivalid host name");
+		throw socket_exception("error: ivalid host name or domain name not found");	
 	ts::dns_entry rezult;
 	if(s->h_name != nullptr)
 		rezult._name = s->h_name;
 	if (s->h_addrtype == native_enum_address_famaly(ts::address_famaly::internet_network))
 	{	
 		rezult._fam = ts::address_famaly::internet_network;
-		ts::ip_address* addr = reinterpret_cast<ts::ip_address*>(s->h_addr_list);
-		while (*addr != ts::ip_address_any)
+		ts::ip_address** addr = reinterpret_cast<ts::ip_address**>(s->h_addr_list);
+		while (*addr != nullptr)
 		{	
-    		rezult._v4addresses.push_back(*addr);
+    		rezult._v4addresses.push_back(**addr);
 			addr++;
 		}
 	}
 	if (s->h_addrtype == native_enum_address_famaly(ts::address_famaly::internet_network_v6))
 	{
 		rezult._fam = ts::address_famaly::internet_network_v6;
-		ts::ip_address_v6* addr = reinterpret_cast<ts::ip_address_v6*>(s->h_addr_list);
-		while (*addr != ts::ip_address_v6_any)
+		ts::ip_address_v6** addr = reinterpret_cast<ts::ip_address_v6**>(s->h_addr_list);
+		while (*addr != nullptr)
 		{
-			rezult._v6addresses.push_back(*addr);
+			rezult._v6addresses.push_back(**addr);
 			addr++;
 		}
 	}
