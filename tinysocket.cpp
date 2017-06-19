@@ -2,8 +2,12 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 #include "tinysocket.h"
+
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+
 #include <mutex>
-#include <utility>
 
 #if defined(_WIN32)
 	#include <WinSock2.h>
@@ -13,15 +17,10 @@
 		#pragma comment(lib,"ws2_32.lib") 
 	#endif	
 	typedef int socklen_t;
-	
+
 	#define _sioct ioctlsocket
 	#define _sclose closesocket
 	#define _ssuberrorconst 10038
-
-	#if defined( __GNUC__)
-		INT WSAAPI inet_pton(INT Family, PCSTR pszAddrString, PVOID pAddrBuf);
-		INT	WSAAPI inet_ntop(INT Family, const VOID * pAddr,  PSTR pStringBuf, size_t StringBufSize);
-	#endif
 
 	char exception_buffer[2048];
 	class ws2data_quard
@@ -79,6 +78,8 @@
 
 	#define INVALID_SOCKET -1	
 #endif
+
+#include "tinysocket_parser.inl"
 
 ts::socket_native_error_code get_socket_error_code()
 {
@@ -524,8 +525,8 @@ ts::ip_end_point ts::socket::remote_endpoint()
 
 void  ts::socket::set_noblocking(bool _Enabled)  throw(socket_exception)
 {
-	unsigned long opt = _Enabled;
-	if(::_sioct(_fd, FIONBIO,&opt))
+        unsigned long opt = _Enabled ? 1 : 0;
+        if(::_sioct(_fd, FIONBIO,&opt))
 		throw socket_exception("error: of set noblocking socket (ioctl)", get_socket_error_code());	
 }
 
@@ -637,7 +638,7 @@ bool ts::ip_end_point::operator==(const ip_end_point & of) const
 ts::ip_address_v6 ts::ip_address_v6::from_string(const std::string & _String)
 {
 	ip_part tmp[16];
-	if (::inet_pton(native_enum_address_famaly(ts::address_famaly::internet_network_v6), _String.c_str(), &tmp) < 1)
+	if (::ts_inet_pton(native_enum_address_famaly(ts::address_famaly::internet_network_v6), _String.c_str(), &tmp) <= 0)
 		throw socket_exception("error: ivalid address format");
 	return ts::ip_address_v6(tmp);
 }
@@ -645,7 +646,7 @@ ts::ip_address_v6 ts::ip_address_v6::from_string(const std::string & _String)
 ts::ip_address ts::ip_address::from_string(const std::string & _String)
 {
 	ip_part tmp[4];
-	if(::inet_pton(native_enum_address_famaly(ts::address_famaly::internet_network), _String.c_str(), &tmp) < 1)
+	if(::ts_inet_pton(native_enum_address_famaly(ts::address_famaly::internet_network), _String.c_str(), &tmp) <= 0)
 		throw socket_exception("error: ivalid address format");
 	return ts::ip_address(tmp);
 }
@@ -653,7 +654,8 @@ ts::ip_address ts::ip_address::from_string(const std::string & _String)
 std::ostream & ts::operator<<(std::ostream & _Stream, const ts::ip_address & _Addr)
 {
 	char tmp[256];
-	::inet_ntop(native_enum_address_famaly(ts::address_famaly::internet_network), &_Addr, tmp, sizeof(tmp));
+	if(::ts_inet_ntop(native_enum_address_famaly(ts::address_famaly::internet_network), &_Addr, tmp, sizeof(tmp)) == nullptr)
+		throw ts::socket_exception("error: put address to stream");
 	_Stream << tmp;
 	return _Stream;
 }
@@ -661,7 +663,8 @@ std::ostream & ts::operator<<(std::ostream & _Stream, const ts::ip_address & _Ad
 std::ostream & ts::operator<<(std::ostream & _Stream, const ts::ip_address_v6 & _Addr)
 {
 	char tmp[256];
-	::inet_ntop(native_enum_address_famaly(ts::address_famaly::internet_network_v6), &_Addr, tmp, sizeof(tmp));
+	if(::ts_inet_ntop(native_enum_address_famaly(ts::address_famaly::internet_network_v6), &_Addr, tmp, sizeof(tmp)))
+		throw ts::socket_exception("error: put address to stream");
 	_Stream << tmp;
 	return _Stream;
 }
