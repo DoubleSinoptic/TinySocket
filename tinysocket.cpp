@@ -269,7 +269,7 @@ ts::protocol_type un_native_enum_protocol_type(int ttype)
 
 ts::ip_address::ip_address(const ip_part * _Address)
 {
-	_address = *((uint32_t*)_Address);
+	_address = htonl(*((uint32_t*)_Address));
 }
 
 ts::ip_address::ip_address(uint32_t _NativeHotPost)
@@ -277,20 +277,16 @@ ts::ip_address::ip_address(uint32_t _NativeHotPost)
 	_address = _NativeHotPost;
 }
 
-ts::ip_address::ip_address(ip_part _A, ip_part _B, ip_part _C, ip_part _D)
+ts::ip_address::ip_address(ip_part _Part0, ip_part _Part1, ip_part _Part2, ip_part _Part3)
 	: _address(0)
 {
-	 
-	_address |= _D;
-	_address = _address << 8;
-
-	_address |= _C;
-	_address = _address << 8;
-
-	_address |= _B;
-	_address = _address << 8;
-
-	_address |= _A;
+	uint32_t rezaddr;
+	ip_part* p = (ip_part*)&rezaddr;
+	rezaddr[0] = _Part0;
+	rezaddr[1] = _Part1;
+	rezaddr[2] = _Part2;
+	rezaddr[3] = _Part3;
+	_address = htonl(rezaddr);
 }
 
 std::size_t totalBytesSended = 0;

@@ -105,7 +105,7 @@ namespace ts
 	public:
 		explicit ip_address() : _address(0) { }
 
-		explicit ip_address(ip_part _A, ip_part _B, ip_part _C, ip_part _D);
+		explicit ip_address(ip_part _Part0, ip_part _Part1, ip_part _Part2, ip_part _Part3);
 
 		explicit ip_address(const ip_part* _Address);
 
