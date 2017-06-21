@@ -300,6 +300,9 @@ namespace ts
 
 		int receive_from_some(void* _Data, size_t _DataLen, ip_end_point& _From, socket_flags _Flags = socket_flags::none) throw();
 
+		/**
+		*@brief Not working if compiller not supported move optimization, use accept_new
+		**/
 		socket accept() throw(socket_exception);
 
 		socket* accept_new() throw(socket_exception);

@@ -282,10 +282,10 @@ ts::ip_address::ip_address(ip_part _Part0, ip_part _Part1, ip_part _Part2, ip_pa
 {
 	uint32_t rezaddr;
 	ip_part* p = (ip_part*)&rezaddr;
-	rezaddr[0] = _Part0;
-	rezaddr[1] = _Part1;
-	rezaddr[2] = _Part2;
-	rezaddr[3] = _Part3;
+        p[0] = _Part0;
+        p[1] = _Part1;
+        p[2] = _Part2;
+        p[3] = _Part3;
 	_address = htonl(rezaddr);
 }
 
