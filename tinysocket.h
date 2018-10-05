@@ -11,7 +11,7 @@
 namespace ts
 {
 	typedef int64_t socket_native_error_code;
-
+	
 	class socket_exception : public std::exception
 	{
 		char _exceptionMessgeBuffer[2048];
