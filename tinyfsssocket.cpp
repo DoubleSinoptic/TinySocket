@@ -52,15 +52,6 @@ namespace ts
 	
 		ts::fss_socket_proc* _proc;
 		ts::ip_end_point _serverPoint;
-		std::uint32_t _packCounter = 0;
-
-		inline std::uint32_t gen_pack() 
-		{
-			_packCounter++;
-			if(_packCounter == 0xFFFFFFFF)
-				_packCounter++;
-			return 0;
-		}
 
 		struct package_state {
 			big_package package;
@@ -108,14 +99,14 @@ void ts::fss_socket::set_server(const ts::ip_end_point& srv)
 }
 
 
-void ts::fss_socket::cmd(const command_info& cmd1, const ts::ip_end_point& to, const uint8_t* data, size_t length)
+void ts::fss_socket::cmd(cmd_index id, const command_info& cmd1, const ts::ip_end_point& to, const uint8_t* data, size_t length)
 {
 	int index = _impl->_sendPackeges.size();
 	_impl->_sendPackeges.resize(index + 1);
 
 	ts::fss_socket_impl::package_state& pack = _impl->_sendPackeges[index];
 	pack.package.command = cmd1;
-	pack.package.command_index = _impl->gen_pack();
+	pack.package.command_index = id;
 	pack.package.applay_data(data, length);
 
 	pack.creationTime = std::chrono::steady_clock::now();
@@ -124,16 +115,16 @@ void ts::fss_socket::cmd(const command_info& cmd1, const ts::ip_end_point& to, c
 	_impl->_socket.send_to_some((void*)&pack.package, pack.package.command_and_data_length, to);
 }
 
-void ts::fss_socket::cmd(const command_info& cmd1, const uint8_t* data, size_t length)
+void ts::fss_socket::cmd(cmd_index index, const command_info& cmd1, const uint8_t* data, size_t length)
 {
-	cmd(cmd1, _impl->_serverPoint, data, length);
+	cmd(index, cmd1, _impl->_serverPoint, data, length);
 }
 
 void ts::fss_socket::unsafe_cmd(const command_info& cmd1, const ts::ip_end_point& to, const uint8_t* data, size_t length)
 {
 	ts::fss_socket_impl::package_state pack;
 	pack.package.command = cmd1;
-	pack.package.command_index = 0xFFFFFFFF;
+	pack.package.command_index = unsafe_index;
 	pack.package.applay_data(data, length);
 
 	pack.creationTime = std::chrono::steady_clock::now();
@@ -177,7 +168,7 @@ bool ts::fss_socket::wait_for(uint32_t cmdName, int timeOut)
 
 		if (pack.command.cmd == cmdName)
 		{
-			if (pack.command_index != 0xFFFFFFFF)
+			if (pack.command_index != unsafe_index)
 			{
 				struct confrim_cmd
 				{
@@ -190,19 +181,19 @@ bool ts::fss_socket::wait_for(uint32_t cmdName, int timeOut)
 				conf.command_and_data_length = sizeof(confrim_cmd);
 				conf.command_index = pack.command_index;
 
-				if (_impl->_proc->process(pack.command, point, pack.data, pack.command_and_data_length - sizeof(confrim_cmd)))
+				if (_impl->_proc->process(pack.command_index, pack.command, point, pack.data, pack.command_and_data_length - sizeof(confrim_cmd)))
 					_impl->_socket.send_to_some((void*)&conf, conf.command_and_data_length, point);
 
 			}
 			else
-				_impl->_proc->process(pack.command, point, pack.data, pack.command_and_data_length - sizeof(confrim_cmd));
+				_impl->_proc->process(pack.command_index, pack.command, point, pack.data, pack.command_and_data_length - sizeof(confrim_cmd));
 			return true;
 		}
 		else if (pack.command.cmd == 0xFFFFFFFF)
 		{
 			_impl->_sendPackeges.erase(std::remove_if(_impl->_sendPackeges.begin(), _impl->_sendPackeges.end(), [&](ts::fss_socket_impl::package_state& state)
 			{
-				return state.package.command_index == pack.command_index;
+				return state.package.command_index == pack.command_index && state.to == point;
 			}), _impl->_sendPackeges.end());
 		}
 
@@ -235,12 +226,13 @@ void ts::fss_socket::receive_and_process(int maxProcessedPackeges)
 		{
 			_impl->_sendPackeges.erase(std::remove_if(_impl->_sendPackeges.begin(), _impl->_sendPackeges.end(), [&](ts::fss_socket_impl::package_state& state)
 			{
-				return state.package.command_index == pack.command_index;
+
+				return state.package.command_index == pack.command_index && state.to == point;
 			}), _impl->_sendPackeges.end());
 		}
 		else
 		{
-			if (pack.command_index != 0xFFFFFFFF)
+			if (pack.command_index != unsafe_index)
 			{
 				struct confrim_cmd
 				{
@@ -254,11 +246,11 @@ void ts::fss_socket::receive_and_process(int maxProcessedPackeges)
 				conf.command_index = pack.command_index;
 
 
-				if (_impl->_proc->process(pack.command, point, pack.data, pack.command_and_data_length - sizeof(confrim_cmd)))
+				if (_impl->_proc->process(pack.command_index, pack.command, point, pack.data, pack.command_and_data_length - sizeof(confrim_cmd)))
 					_impl->_socket.send_to_some((void*)&conf, conf.command_and_data_length, point);
 			}
 			else
-				_impl->_proc->process(pack.command, point, pack.data, pack.command_and_data_length - sizeof(confrim_cmd));
+				_impl->_proc->process(pack.command_index, pack.command, point, pack.data, pack.command_and_data_length - sizeof(confrim_cmd));
 		
 
 		}

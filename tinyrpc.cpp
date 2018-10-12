@@ -1,5 +1,14 @@
 #include "tinyrpc.h"
 
+template<typename T, typename Integral>
+constexpr bool valid_index(const T& getsizearray, Integral x)
+{
+	return x >= 0 && getsizearray.size() > x;
+}
+
+#define iix(x) increment_index(x)
+#define pix(x) pre_increment_index(x)
+#define paddix(x) pre_add_index(x)
 namespace ts{
 
 	std::vector<class rpc_entity*> entitys(1, ((class rpc_entity*) - 1));
@@ -28,7 +37,8 @@ namespace ts{
 	rpc_entity::~rpc_entity()
 	{
 		if (_thisId != -1)
-			entitys[_thisId] = nullptr;
+			if(_thisId >= 0 && _thisId <= entitys.size())
+				entitys[_thisId] = nullptr;
 	}
 
 	void rpc_entity::set_id(entity_id id)
@@ -38,7 +48,7 @@ namespace ts{
 		_thisId = id;
 		if (entitys.size() <= _thisId)
 			entitys.resize(_thisId + 1);
-		if (entitys[_thisId] != nullptr)
+		if (entitys[_thisId] != nullptr && entitys[_thisId] != ((rpc_entity*)-1))
 			throw std::runtime_error("entity collision detetcion");
 		entitys[_thisId] = this;
 	}
@@ -51,15 +61,24 @@ namespace ts{
 		return _thisId;
 	}
 
+	entity_id rpc_entity::allocate_id()
+	{
+		return find_empty_entity();
+	}
+
     entity_id rpc_entity::get_id() const
 	{
 		return _thisId;
 	}
 
+	void rpc_entity::on_deleted()
+	{
+	}
+
 	void rpc_entity::call(uint32_t rpcName, user_id userId, ts::binary_stream & responce)
 	{
 		if (server)
-			server->proc._socket.unsafe_cmd({ rpcName, 0, _thisId }, server->proc._users[userId]->external_address, responce.data(), responce.stored_length());
+			server->proc._socket.cmd(iix(server->proc._users[userId]->send_next), { rpcName, 0, _thisId }, server->proc._users[userId]->external_address, responce.data(), responce.stored_length());
 		else
 			throw std::runtime_error("not allow");
 	}
@@ -78,10 +97,10 @@ namespace ts{
 		{
 			for (auto& i : server->proc._users)
 				if (i != nullptr)
-					server->proc._socket.cmd({ rpcName, 0, _thisId }, i->external_address, responce.data(), responce.stored_length());
+					server->proc._socket.cmd(iix(i->send_next), { rpcName, 0, _thisId }, i->external_address, responce.data(), responce.stored_length());
 		}	
 		else
-			client->proc._socket.cmd({ rpcName, client->proc._user_id, _thisId }, client->proc._serverPoint, responce.data(), responce.stored_length());
+			client->proc._socket.cmd(iix(client->proc.send_next), { rpcName, client->proc._user_id, _thisId }, client->proc._serverPoint, responce.data(), responce.stored_length());
 		
 	}
 
@@ -97,12 +116,23 @@ namespace ts{
 			client->proc._socket.unsafe_cmd({ rpcName, client->proc._user_id, _thisId }, client->proc._serverPoint, responce.data(), responce.stored_length());
 	}
 
-	bool rpc_client::rpc_client_proc::process(const ts::command_info & cmd, const ts::ip_end_point & point, uint8_t * data, size_t length)
+	bool rpc_client::rpc_client_proc::process(uint32_t cmdIndex, const ts::command_info & cmd, const ts::ip_end_point & point, uint8_t * data, size_t length)
 	{
+		if (cmdIndex != unsafe_index)
+		{
+			if (cmdIndex != this->recv_next)
+			{
+				return false;
+			}
+			else
+				pix(this->recv_next);
+		}
+
 		ts::binary_stream d(data, length, 0);
 		if (cmd.entity_id != 0)
-		{
-			entitys[cmd.entity_id]->rpc(cmd.user_index, cmd.cmd, d);
+		{		
+			if(valid_index(entitys, cmd.entity_id) && entitys[cmd.entity_id])
+				entitys[cmd.entity_id]->rpc(cmd.user_index, cmd.cmd, d);
 		}
 		else if (cmd.cmd == ts::cmd_hash("::connect_ok"))
 		{
@@ -124,19 +154,19 @@ namespace ts{
 
 	void insert_rpc_client(rpc_client* clicent) 
 	{
-		if (server)
-			throw std::runtime_error("server alredy inserted");
-		if (client)
-			throw std::runtime_error("client alredy inserted");
+		if(server)
+			delete server;
+		if(client)
+			delete client;
 		client = clicent;
 	}
 
 	void insert_rpc_server(rpc_listener* servser)
 	{
-		if (client)
-			throw std::runtime_error("client alredy inserted");
 		if (server)
-			throw std::runtime_error("server alredy inserted");
+			delete server;
+		if (client)
+			delete client;
 		server = servser;
 	}
 
@@ -146,6 +176,33 @@ namespace ts{
 			return 0;
 		else
 			return client->get_my_id();
+	}
+
+	void clear_entities()
+	{
+		for (size_t i = 1; i < entitys.size(); i++) 
+		{
+			if (entitys[i] != nullptr)
+				entitys[i]->on_deleted();
+		}
+		entitys.resize(1);
+	}
+
+	SGE_EXPORT size_t users_count()
+	{
+		if(server)
+			return server->users_count();
+		return 0;
+	}
+
+	SGE_EXPORT rpc_entity ** begin_entities()
+	{
+		return (rpc_entity **)entitys.data();
+	}
+
+	SGE_EXPORT size_t entities_count()
+	{
+		return entitys.size();
 	}
 
 	rpc_client::rpc_client_proc::rpc_client_proc(int delayMs) :
@@ -171,7 +228,7 @@ namespace ts{
 	void rpc_client::connect(const ts::ip_end_point & point)
 	{
 		proc._socket.set_server(point);
-		proc._socket.cmd({ ts::cmd_hash("::connect") }, nullptr, 0);
+		proc._socket.cmd(iix(proc.send_next), { ts::cmd_hash("::connect") }, nullptr, 0);
 		if (!proc._socket.wait_for(ts::cmd_hash("::connect_ok"), 4000))
 			throw std::runtime_error("error of connect to point");
 	}
@@ -180,7 +237,7 @@ namespace ts{
 	{
 		if (proc._is_connected)
 		{
-			proc._socket.cmd({ ts::cmd_hash("::disconnect"), proc._user_id }, nullptr, 0);
+			proc._socket.cmd(iix(proc.send_next), { ts::cmd_hash("::disconnect"), proc._user_id }, nullptr, 0);
 			proc._is_connected = false;
 		}
 	}
@@ -196,8 +253,19 @@ namespace ts{
 		}
 	}
 
+	size_t rpc_listener::users_count() const
+	{
+		size_t acc = 0;
+		for (size_t i = 0; i < proc._users.size(); i++) 
+		{
+			if (proc._users[i] != nullptr)
+				acc++;
+		}
+		return acc;
+	}
+
 	rpc_listener::rpc_listener(int delayMs, int maxUsers) :
-		proc(delayMs, maxUsers)
+		proc(delayMs, maxUsers, this)
 	{
 		update_timer = std::chrono::steady_clock::now();
 	}
@@ -218,14 +286,14 @@ namespace ts{
 		}
 	}
 }
-template<typename T, typename Integral>
-constexpr bool valid_index(const T& getsizearray, Integral x)
+
+size_t ts::rpc_listener::rpc_listener_proc::users_count() const
 {
-	return x >= 0 && getsizearray.size() > x;
+	return _users.size();
 }
 
-ts::rpc_listener::rpc_listener_proc::rpc_listener_proc(int delayMs, uint32_t maxUsers) :
-	_socket(this, delayMs), _users(maxUsers + 1)
+ts::rpc_listener::rpc_listener_proc::rpc_listener_proc(int delayMs, uint32_t maxUsers, rpc_listener* meListener) :
+	_socket(this, delayMs), _users(maxUsers + 1), _meListener(meListener)
 {
 
 }
@@ -249,8 +317,10 @@ void ts::rpc_listener::rpc_listener_proc::delete_user(uint32_t i)
 		return;
 	if (_users[i] != nullptr)
 	{
-		_socket.cmd({ ts::cmd_hash("::disconnect_ok") }, _users[i]->external_address, 0, 0);
+		_socket.cmd(iix(_users[i]->send_next), { ts::cmd_hash("::disconnect_ok") }, _users[i]->external_address, 0, 0);
 		std::cout << "deleted user: " << i << ": " << _users[i]->external_address << "\n";
+		if (_meListener->on_client_disconnected)
+			_meListener->on_client_disconnected(_meListener, _users[i]);
 		delete _users[i];
 		_users[i] = nullptr;
 	}
@@ -279,96 +349,107 @@ void ts::rpc_listener::rpc_listener_proc::check_user_alive()
 	}
 }
 
-bool ts::rpc_listener::rpc_listener_proc::process(const ts::command_info & cmd, const ts::ip_end_point & point, uint8_t * data, size_t length)
+bool ts::rpc_listener::rpc_listener_proc::process(uint32_t cmdIndex, const ts::command_info & cmd, const ts::ip_end_point & point, uint8_t * data, size_t length)
 {
 	ts::binary_stream request(data, length, 0);
 	ts::package_stream<64> responce;
 
 	if (cmd.entity_id != 0 && cmd.user_index != 0)
 	{
-		if (check_user_id(cmd.user_index))
+		if (check_user_id(cmd.user_index) && _users[cmd.user_index]->external_address == point)
 		{
-			if (_users[cmd.user_index]->external_address == point)
+			if (cmdIndex != unsafe_index)
 			{
-				if(valid_index(entitys, cmd.entity_id))
-					entitys[cmd.entity_id]->rpc(cmd.user_index, cmd.cmd, request);
-				for (auto& i : _users)
-					if (i != nullptr)
-						_socket.cmd({ cmd.cmd, cmd.user_index, cmd.entity_id }, i->external_address, data, length);
+				if (cmdIndex != _users[cmd.user_index]->recv_next)
+					return false;
+				else
+					pix(_users[cmd.user_index]->recv_next);
 			}
-			else
-			{
-				responce.write_string("invalid user point");
-				_socket.cmd({ ts::cmd_hash("::error") }, point, responce.data(), responce.stored_length());
-			}
+				
+
+			if (valid_index(entitys, cmd.entity_id))
+				entitys[cmd.entity_id]->rpc(cmd.user_index, cmd.cmd, request);
 		}
 		else
 		{
-			responce.write_string("invalid user #1 id ");
-			_socket.cmd({ ts::cmd_hash("::error") }, point, responce.data(), responce.stored_length());
+			responce.write_string("invalid user point or id");
+			_socket.unsafe_cmd({ ts::cmd_hash("::error") }, point, responce.data(), responce.stored_length());
 		}
 	}
 	else if (cmd.user_index != 0)
 	{
-		if (cmd.cmd == ts::cmd_hash("::confrim_connection"))
+		if (check_user_id(cmd.user_index) && _users[cmd.user_index]->external_address == point)
 		{
-			if (check_user_id(cmd.user_index))
+			if (cmdIndex != unsafe_index)
 			{
-				if (_users[cmd.user_index]->external_address == point)
-					_users[cmd.user_index]->last_packege = std::chrono::steady_clock::now();
+				if (cmdIndex != _users[cmd.user_index]->recv_next)
+					return false;
 				else
-				{
-					responce.write_string("invalid user point");
-					_socket.cmd({ ts::cmd_hash("::error") }, point, responce.data(), responce.stored_length());
-				}
-			}
-			else
-			{
-				responce.write_string("invalid user #2 id");
-				_socket.cmd({ ts::cmd_hash("::error") }, point, responce.data(), responce.stored_length());
-			}
-		}
-		else if (cmd.cmd == ts::cmd_hash("::disconnect"))
-		{
-
-			if (check_user_id(cmd.user_index))
-			{
-				if (_users[cmd.user_index]->external_address == point)
-					delete_user(cmd.user_index);
-				else
-				{
-					responce.write_string("invalid user point");
-					_socket.cmd({ ts::cmd_hash("::error") }, point, responce.data(), responce.stored_length());
-				}
-			}
-			else
-			{
-				responce.write_string("invalid user #3 id");
-				_socket.cmd({ ts::cmd_hash("::error") }, point, responce.data(), responce.stored_length());
+					pix(_users[cmd.user_index]->recv_next);
 			}
 
+			if (cmd.cmd == ts::cmd_hash("::confrim_connection"))
+			{
+				_users[cmd.user_index]->last_packege = std::chrono::steady_clock::now();
+			}
+			else if (cmd.cmd == ts::cmd_hash("::disconnect"))
+			{
+				delete_user(cmd.user_index);
+			}
 		}
+		else
+		{
+			responce.write_string("invalid user point or id");
+			_socket.unsafe_cmd({ ts::cmd_hash("::error") }, point, responce.data(), responce.stored_length());
+		}
+	
+
+
+
+
 	}
 	else
 	{
 		if (cmd.cmd == ts::cmd_hash("::connect"))
 		{
-			uint32_t newUser = allocate_user_id();
-			if (newUser == 0)
+			bool hasFind = false;
+			for (auto& i : this->_users)
+				if (i != nullptr)
+					if (i->external_address == point)
+					{
+						hasFind = true;
+						break;
+					}
+			if (!hasFind)
 			{
-				responce.write_string("users limit detected");
-				_socket.cmd({ ts::cmd_hash("::error") }, point, responce.data(), responce.stored_length());
+				uint32_t newUser = allocate_user_id();
+				if (newUser == 0)
+				{
+					responce.write_string("users limit detected");
+					_socket.unsafe_cmd({ ts::cmd_hash("::error") }, point, responce.data(), responce.stored_length());
+				}
+				else
+				{
+					_users[newUser] = new rpc_user();
+					_users[newUser]->external_address = point;
+					_users[newUser]->last_packege = std::chrono::steady_clock::now();
+					_users[newUser]->index = newUser;
+					/*И тут бы ещё проверочку на безопасность unsafe_index'a*/
+					_users[newUser]->recv_next = paddix(cmdIndex);
+					_socket.cmd(iix(_users[newUser]->send_next), { ts::cmd_hash("::connect_ok"), newUser }, point, nullptr, 0);
+
+					std::cout << "connected user: " << newUser << ": " << point << "\n";
+					if (_meListener->on_client_connected)
+						_meListener->on_client_connected(_meListener, _users[newUser]);
+				}
 			}
 			else
 			{
-				_users[newUser] = new rpc_user();
-				_users[newUser]->external_address = point;
-				_users[newUser]->last_packege = std::chrono::steady_clock::now();
-				_users[newUser]->index = newUser;
-				_socket.cmd({ ts::cmd_hash("::connect_ok"), newUser }, point, nullptr, 0);
-
-				std::cout << "connected user: " << newUser << ": " << point << "\n";
+				responce.write_string("you user already connected");
+				_socket.unsafe_cmd({ ts::cmd_hash("::error") }, point, responce.data(), responce.stored_length());
 			}
+
+			
 
 		}
 	}

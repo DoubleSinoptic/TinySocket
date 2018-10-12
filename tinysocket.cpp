@@ -411,6 +411,13 @@ void ts::socket::tcp_no_delay(bool enabled) throw(ts::socket_exception)
 		throw socket_exception("error: socket: of set option to", get_socket_error_code());
 }
 
+void ts::socket::set_broadcast(bool value) throw(socket_exception)
+{
+	int broadcastEnable = value  ? 1 : 0;
+	if(setsockopt(_fd, SOL_SOCKET, SO_BROADCAST, (const char*)&broadcastEnable, sizeof(broadcastEnable)))
+		throw socket_exception("error: socket: of set option to", get_socket_error_code());
+}
+
 void ts::socket::connect(const ip_end_point & _To) throw(socket_exception)
 {
 	if (::connect(_fd, (sockaddr*)_To.native_address(), _To.native_size()))

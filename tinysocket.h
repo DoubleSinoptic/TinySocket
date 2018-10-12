@@ -1,6 +1,7 @@
 #ifndef __TINY_SOCKET_H__
 #define __TINY_SOCKET_H__
 
+#include "../Common/Defines.h"
 #include <ostream>
 #include <cstdint>
 #include <exception>
@@ -8,11 +9,17 @@
 #include <string>
 #include <vector>
 
+#if defined(_WIN32) || defined(_WIN64)
+#	define TS_EXPORT __declspec(dllexport)
+#else
+#	define TS_EXPORT
+#endif
+
 namespace ts
 {
 	typedef int64_t socket_native_error_code;
 	
-	class socket_exception : public std::exception
+	class TS_EXPORT socket_exception : public std::exception
 	{
 		char _exceptionMessgeBuffer[2048];
 
@@ -34,7 +41,7 @@ namespace ts
 
 	typedef int64_t socket_native_fd;
 
-	class ip_address_v6
+	class TS_EXPORT ip_address_v6
 	{
 	public:
 		explicit ip_address_v6(
@@ -100,7 +107,7 @@ namespace ts
 		ip_part _address[16];
 	};
 
-	class ip_address
+	class TS_EXPORT ip_address
 	{
 	public:
 		explicit ip_address() : _address(0) { }
@@ -137,7 +144,7 @@ namespace ts
 
 	const ip_address ip_address_any(0, 0, 0, 0);
 
-	const ip_address ip_address_loopback(0x7F, 0, 0, 0);
+	const ip_address ip_address_loopback(0x7F, 0, 0, 0x01);
 
 	const ip_address ip_address_broadcast(0xFF, 0xFF, 0xFF, 0xFF);
 
@@ -174,7 +181,7 @@ namespace ts
 		raw
 	};
 
-	class ip_end_point 
+	class TS_EXPORT ip_end_point
 	{
 	public:
 		ip_end_point(ip_address _Address, port _Port);
@@ -205,9 +212,9 @@ namespace ts
 		std::uint8_t _address[32];
 	};
 
-	std::ostream& operator <<(std::ostream& _Stream, const ip_address& _Addr);
-	std::ostream& operator <<(std::ostream& _Stream, const ip_address_v6& _Addr);
-	std::ostream& operator <<(std::ostream& _Stream, const ip_end_point& _Addr);
+	TS_EXPORT std::ostream& operator <<(std::ostream& _Stream, const ip_address& _Addr);
+	TS_EXPORT std::ostream& operator <<(std::ostream& _Stream, const ip_address_v6& _Addr);
+	TS_EXPORT std::ostream& operator <<(std::ostream& _Stream, const ip_end_point& _Addr);
 
 	enum class socket_shutdown : int
 	{
@@ -251,7 +258,7 @@ namespace ts
 		return lhs;
 	}
 
-	class socket
+	class TS_EXPORT socket
 	{
 		explicit socket(socket_native_fd _NativeFd, const ip_end_point& _RemoteAddres) throw(socket_exception);
 	public:
@@ -281,6 +288,8 @@ namespace ts
 		/*void set_option(int _OptionName, int _OptionLevel, base_option* option);
 
 		base_option* get_option(int _OptionName, int _OptionLevel);*/
+
+		void set_broadcast(bool value)  throw(socket_exception);
 
 		void connect(const ip_end_point& _To) throw(socket_exception);
 
@@ -330,7 +339,7 @@ namespace ts
 		bool _isListening;
 	};
 
-	class dns_entry
+	class TS_EXPORT dns_entry
 	{
 		std::vector<ip_address> _v4addresses;
 		std::vector<ip_address_v6> _v6addresses;
